@@ -1,0 +1,37 @@
+name: Проверка безопасности
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rls:
+    name: Изоляция кабинетов в базе (RLS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Запустить атаки «чужой аккаунт» на настоящем PostgreSQL
+        run: bash tests/run_rls_test.sh
+  secrets:
+    name: Поиск утёкших ключей
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.21.2 detect --source /repo --redact --verbose
+      - name: Нет секретных ключей Supabase в публичных файлах
+        run: |
+          if grep -nEi 'service_role|sb_secret_' index.html app.js config.js style.css; then
+            echo "Найден секретный ключ в публичном файле"; exit 1; fi
+          python3 - <<'PY'
+          import json,base64,re
+          s=open('config.js').read()
+          for t in re.findall(r'eyJ[\w-]+\.[\w-]+\.[\w-]+', s):
+              p=t.split('.')[1]; p+='='*(-len(p)%4)
+              role=json.loads(base64.urlsafe_b64decode(p)).get('role')
+              assert role=='anon', f'В config.js ключ с ролью {role}, а нужен только anon'
+          print('config.js: только публичный ключ')
+          PY

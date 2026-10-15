@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Поднимает временный PostgreSQL, эмулирует Supabase, накатывает schema.sql и гоняет rls_test.sql.
+set -euo pipefail
+BIN=$(ls -d /usr/lib/postgresql/*/bin | tail -1)
+D=$(mktemp -d); PORT=55433
+cd "$(dirname "$0")/.."
+"$BIN/initdb" -D "$D" -U postgres -A trust >/dev/null
+"$BIN/pg_ctl" -D "$D" -o "-p $PORT -k $D -c listen_addresses=''" -l "$D/log" start >/dev/null
+trap '"$BIN/pg_ctl" -D "$D" stop -m fast >/dev/null; rm -rf "$D"' EXIT
+P="psql -X -q -h $D -p $PORT -U postgres -d postgres -v ON_ERROR_STOP=1"
+$P -f tests/supabase_emulation.sql
+$P -f supabase/schema.sql
+$P -f supabase/schema.sql   # повторный запуск не должен ломаться
+psql -X -h "$D" -p $PORT -U postgres -d postgres -f tests/rls_test.sql
