@@ -520,7 +520,7 @@ function paymentsHtml(subs){
       <div class="card"><div class="lbl">Общий остаток по кредитам</div><div class="big">${debt?rub(debt):"—"}</div></div>
     </div>
     ${subs.length?groups.map(([k,n,f])=>{ const g=subs.filter(f); return g.length?`<div class="card"><h2>${n} <span class="mute num">${rub(g.reduce((a,s)=>a+monthlyOf(s),0))} / мес</span></h2><div class="list">${g.map(row).join("")}</div></div>`:""; }).join("")
-      :`<div class="card"><div class="empty" style="padding:0">Платежей пока нет. Добавьте кредит, ипотеку, подписку или коммуналку — «Пульт» напомнит на «Обзоре» и в календаре, а кнопка «Оплачено» сама запишет расход.</div></div>`}`;
+      :`<div class="card"><div class="empty" style="padding:0">Платежей пока нет. Добавьте кредит, ипотеку, подписку или коммуналку — Pulse напомнит на «Обзоре» и в календаре, а кнопка «Оплачено» сама запишет расход.</div></div>`}`;
 }
 
 function vMoney(){
@@ -728,7 +728,7 @@ const redirectTo = () => location.origin + location.pathname;
 function drawAuth(){
   const app = $(".app"), box = $("#auth");
   app.hidden = true; box.hidden = false;
-  if (!configured()) { box.innerHTML = `<div class="authcard"><div class="brand"><i></i>Пульт</div><h1>Сайт ещё не настроен</h1><p class="mute">Нужно указать адрес базы Supabase в файле config.js.</p></div>`; return; }
+  if (!configured()) { box.innerHTML = `<div class="authcard"><div class="brand"><i></i>Pulse</div><h1>Сайт ещё не настроен</h1><p class="mute">Нужно указать адрес базы Supabase в файле config.js.</p></div>`; return; }
   const titles = { login: "Вход", signup: "Регистрация", forgot: "Восстановление пароля", reset: "Новый пароль" };
   const f = id => `id="${id}" name="${id}"`;
   let fields = "";
@@ -738,7 +738,7 @@ function drawAuth(){
   if (authMode === "signup" || authMode === "reset") fields += `<label>Повторите пароль<input type="password" ${f("aPass2")} autocomplete="new-password" minlength="8" maxlength="72" required></label>`;
   const btn = { login: "Войти", signup: "Создать кабинет", forgot: "Прислать ссылку", reset: "Сохранить пароль" }[authMode];
   box.innerHTML = `<form class="authcard" data-submit="authSubmit" novalidate>
-    <div class="brand"><i></i>Пульт</div>
+    <div class="brand"><i></i>Pulse</div>
     <h1>${titles[authMode]}</h1>
     ${authMode === "login" ? `<p class="mute">Ваш личный кабинет: задачи, привычки, финансы и здоровье.</p>` : ""}
     ${authMode === "signup" ? `<p class="mute">Данные кабинета видите только вы.</p>` : ""}

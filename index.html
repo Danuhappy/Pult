@@ -8,9 +8,11 @@
 <meta name="theme-color" content="#0D0303">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Пульт</title>
+<title>Pulse</title>
+<meta name="apple-mobile-web-app-title" content="Pulse">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Unbounded:wght@600;800&family=JetBrains+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -18,7 +20,7 @@
 <div class="glow" aria-hidden="true"><i></i><i></i><i></i></div>
 <div class="app" hidden>
   <aside class="rail">
-    <div class="brand"><i></i>Пульт</div>
+    <div class="brand"><i></i>Pulse</div>
     <nav class="nav" id="nav" aria-label="Разделы"></nav>
     <div class="foot"><span id="who"></span><button type="button" class="linkbtn" data-click="logout">Выйти</button></div>
   </aside>
@@ -26,7 +28,7 @@
 </div>
 <div class="toast" id="toast" hidden></div>
 <div id="auth" class="authwrap" hidden></div>
-<noscript><p style="padding:24px;color:#EFF8FF">Для работы «Пульта» включите JavaScript.</p></noscript>
+<noscript><p style="padding:24px;color:#EFF8FF">Для работы Pulse включите JavaScript.</p></noscript>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
