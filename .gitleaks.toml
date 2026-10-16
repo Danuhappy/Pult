@@ -1,0 +1,10 @@
+# Настройки сканера утечек: стандартные правила + разрешённые ПУБЛИЧНЫЕ значения.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Публичный publishable-ключ Supabase (по замыслу виден всем) и тестовый ключ мок-сервера"
+regexes = [
+  '''sb_publishable_[A-Za-z0-9_-]+''',
+  '''pk_test_publishable_key_123456''',
+]
