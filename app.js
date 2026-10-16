@@ -184,13 +184,13 @@ function dayScore(d){
 function greet(){ const h=new Date().getHours(); return h<5?"Доброй ночи":h<12?"Доброе утро":h<18?"Добрый день":"Добрый вечер"; }
 
 /* ---------- charts ---------- */
-const SEG_COLORS = ["#EFF8FF","#BBEF1F","#FF0055","rgba(239,248,255,.55)","rgba(187,239,31,.6)","rgba(255,0,85,.65)"];
+const SEG_COLORS = ["var(--s1)","var(--s2)","var(--s3)","var(--s4)","var(--s5)","var(--s6)"];
 function barChart(vals, labels, color, h=140){
   const W=600, H=h, padB=18, max=Math.max(1,...vals), bw=W/vals.length;
   let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img">`;
-  for(let g=1; g<=3; g++){ const y=(H-padB)*(1-g/3)+2; s+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="2 5"/>`; }
+  for(let g=1; g<=3; g++){ const y=(H-padB)*(1-g/3)+2; s+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" style="stroke:var(--line)" stroke-dasharray="2 5"/>`; }
   vals.forEach((v,i)=>{ const bh=(H-padB-6)*(v/max), x=i*bw+bw*.22, w=bw*.56, y=H-padB-bh;
-    s+=`<rect x="${x}" y="${y}" width="${w}" height="${Math.max(bh,v?2:0)}" rx="${Math.min(5,w/2)}" fill="${i===vals.length-1?"var(--peach)":color}"><title>${esc(labels[i])}: ${fmt(v)}</title></rect>`;
+    s+=`<rect x="${x}" y="${y}" width="${w}" height="${Math.max(bh,v?2:0)}" rx="${Math.min(5,w/2)}" style="fill:${i===vals.length-1?"var(--peach)":color}"><title>${esc(labels[i])}: ${fmt(v)}</title></rect>`;
     s+=`<text x="${x+w/2}" y="${H-4}" text-anchor="middle">${esc(labels[i])}</text>`; });
   return s+`</svg>`;
 }
@@ -199,27 +199,27 @@ function lineChart(vals, labels, maxV, h=170, suffix=""){
   const pts=vals.map((v,i)=>[padX+i*step, padT+(H-padT-padB)*(1-v/max)]);
   let d=""; pts.forEach((p,i)=>{ if(!i){ d+=`M${p[0]},${p[1]}`; return; } const q=pts[i-1], cx=(q[0]+p[0])/2; d+=` C${cx},${q[1]} ${cx},${p[1]} ${p[0]},${p[1]}`; });
   const last=pts[n-1], gid="g"+Math.random().toString(36).slice(2,7);
-  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF0055" stop-opacity=".45"/><stop offset="1" stop-color="#FF0055" stop-opacity="0"/></linearGradient></defs>`;
-  for(let g=0; g<=2; g++){ const y=padT+(H-padT-padB)*g/2; s+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="2 6"/>`; }
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--pink)" stop-opacity=".45"/><stop offset="1" style="stop-color:var(--pink)" stop-opacity="0"/></linearGradient></defs>`;
+  for(let g=0; g<=2; g++){ const y=padT+(H-padT-padB)*g/2; s+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" style="stroke:var(--line)" stroke-dasharray="2 6"/>`; }
   s+=`<path d="${d} L${last[0]},${H-padB} L${pts[0][0]},${H-padB} Z" fill="url(#${gid})"/>`;
-  s+=`<path d="${d}" fill="none" stroke="#EFF8FF" stroke-width="2.2" stroke-linecap="round"/>`;
-  s+=`<line x1="${last[0]}" x2="${last[0]}" y1="${last[1]}" y2="${H-padB}" stroke="var(--lime)" stroke-dasharray="3 4"/>`;
+  s+=`<path d="${d}" fill="none" style="stroke:var(--line-chart)" stroke-width="2.2" stroke-linecap="round"/>`;
+  s+=`<line x1="${last[0]}" x2="${last[0]}" y1="${last[1]}" y2="${H-padB}" style="stroke:var(--lime)" stroke-dasharray="3 4"/>`;
   const lw=Math.max(34,String(fmt(vals[n-1])+suffix).length*8+14), lx=Math.min(W-lw/2, Math.max(lw/2,last[0]));
-  s+=`<rect x="${lx-lw/2}" y="${Math.max(0,last[1]-28)}" width="${lw}" height="20" rx="10" fill="var(--lime)"/><text x="${lx}" y="${Math.max(0,last[1]-28)+14}" text-anchor="middle" style="fill:#14180a;font-weight:600;font-size:11px">${fmt(vals[n-1])}${suffix}</text>`;
-  s+=`<circle cx="${last[0]}" cy="${last[1]}" r="5" fill="var(--lime)" stroke="#0D0303" stroke-width="2"/>`;
+  s+=`<rect x="${lx-lw/2}" y="${Math.max(0,last[1]-28)}" width="${lw}" height="20" rx="10" style="fill:var(--lime)"/><text x="${lx}" y="${Math.max(0,last[1]-28)+14}" text-anchor="middle" style="fill:var(--ink);font-weight:600;font-size:11px">${fmt(vals[n-1])}${suffix}</text>`;
+  s+=`<circle cx="${last[0]}" cy="${last[1]}" r="5" style="fill:var(--lime);stroke:var(--bg)" stroke-width="2"/>`;
   labels.forEach((l,i)=>{ if(n<=14 || i%2===0) s+=`<text x="${padX+i*step}" y="${H-4}" text-anchor="middle">${esc(l)}</text>`; });
   return s+`</svg>`;
 }
 function ring(value, max, color, label, center){
   const r=44, c=2*Math.PI*r, p=Math.max(0,Math.min(1,value/max));
-  return `<div class="ring"><svg viewBox="0 0 108 108"><circle cx="54" cy="54" r="${r}" fill="none" stroke="var(--track)" stroke-width="9"/>
-    ${p>0?`<circle cx="54" cy="54" r="${r}" fill="none" stroke="${color}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${c*p} ${c}" transform="rotate(-90 54 54)"/>`:""}
+  return `<div class="ring"><svg viewBox="0 0 108 108"><circle cx="54" cy="54" r="${r}" fill="none" style="stroke:var(--track)" stroke-width="9"/>
+    ${p>0?`<circle cx="54" cy="54" r="${r}" fill="none" style="stroke:${color}" stroke-width="9" stroke-linecap="round" stroke-dasharray="${c*p} ${c}" transform="rotate(-90 54 54)"/>`:""}
     <text x="54" y="60" text-anchor="middle" font-size="20">${esc(center)}</text></svg>${label}</div>`;
 }
 function donut(parts, center){
   const total=parts.reduce((s,p)=>s+p[1],0)||1, r=44, c=2*Math.PI*r; let off=0;
-  let s=`<svg viewBox="0 0 108 108" style="width:150px;height:150px;flex:none"><circle cx="54" cy="54" r="${r}" fill="none" stroke="var(--track)" stroke-width="12"/>`;
-  parts.forEach(([n,v,col])=>{ const len=c*v/total; s+=`<circle cx="54" cy="54" r="${r}" fill="none" stroke="${col}" stroke-width="12" stroke-dasharray="${Math.max(0,len-1.5)} ${c}" stroke-dashoffset="${-off}" transform="rotate(-90 54 54)"><title>${esc(n)}</title></circle>`; off+=len; });
+  let s=`<svg viewBox="0 0 108 108" style="width:150px;height:150px;flex:none"><circle cx="54" cy="54" r="${r}" fill="none" style="stroke:var(--track)" stroke-width="12"/>`;
+  parts.forEach(([n,v,col])=>{ const len=c*v/total; s+=`<circle cx="54" cy="54" r="${r}" fill="none" style="stroke:${col}" stroke-width="12" stroke-dasharray="${Math.max(0,len-1.5)} ${c}" stroke-dashoffset="${-off}" transform="rotate(-90 54 54)"><title>${esc(n)}</title></circle>`; off+=len; });
   const fs=Math.min(14, 120/Math.max(1,String(center).length));
   return s+`<text x="54" y="${54+fs*0.35}" text-anchor="middle" style="fill:var(--fg);font-size:${fs.toFixed(1)}px;font-weight:700">${esc(center)}</text></svg>`;
 }
@@ -385,7 +385,7 @@ const CATS = {
 const CATS_ALL = Object.fromEntries([...Object.keys(CATS), "Другое"].map(k => [k, 1]));
 const fmtD = d => { const x = parseD(d); return x.getDate() + " " + MONTHS_G[x.getMonth()] + " " + x.getFullYear(); };
 const INCOME_W = ["зарплат","доход","поступлен","аванс","получил","вернули","кэшбэк","кешбэк"];
-const CAT_COLOR = ["#BBEF1F","#FF0055","#EFF8FF","#d6f76a","#ff5c8f","#b9c6d1","#8fb81a","#c20041","#7e8a94"];
+const CAT_COLOR = ["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)","var(--c6)","var(--c7)","var(--c8)","var(--c9)"];
 function guessCat(s){ s=s.toLowerCase(); for (const [c,ws] of Object.entries(CATS)) if (ws.some(w=>s.includes(w))) return c; return "Другое"; }
 function parseQuick(text){
   const s=text.trim().replace(/(\d)\s+(?=\d{3}(?!\d))/g,"$1"); if(!s) return null;
@@ -436,22 +436,22 @@ function paceChart(cum, budget, labels, todayIdx){
   const y=v=>padT+(H-padT-padB)*(1-v/max);
   const pts=cum.map((v,i)=>[padX+i*step,y(v)]).slice(0, todayIdx+1);
   let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Расходы нарастающим итогом">`;
-  for(let g=0; g<=2; g++){ const yy=padT+(H-padT-padB)*g/2; s+=`<line x1="0" x2="${W}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-dasharray="2 6"/>`; }
-  if (budget>0){ const by=y(budget); s+=`<line x1="${padX}" x2="${W-padX}" y1="${by}" y2="${by}" stroke="var(--pink)" stroke-width="1.5" stroke-dasharray="6 5"/><text x="${W-padX}" y="${by-6}" text-anchor="end" style="fill:var(--pink)">бюджет ${esc(compact(budget))}</text>`;
-    s+=`<line x1="${padX}" y1="${y(0)}" x2="${W-padX}" y2="${by}" stroke="rgba(239,248,255,.25)" stroke-dasharray="2 4"/>`; }
+  for(let g=0; g<=2; g++){ const yy=padT+(H-padT-padB)*g/2; s+=`<line x1="0" x2="${W}" y1="${yy}" y2="${yy}" style="stroke:var(--line)" stroke-dasharray="2 6"/>`; }
+  if (budget>0){ const by=y(budget); s+=`<line x1="${padX}" x2="${W-padX}" y1="${by}" y2="${by}" style="stroke:var(--pink)" stroke-width="1.5" stroke-dasharray="6 5"/><text x="${W-padX}" y="${by-6}" text-anchor="end" style="fill:var(--pink)">бюджет ${esc(compact(budget))}</text>`;
+    s+=`<line x1="${padX}" y1="${y(0)}" x2="${W-padX}" y2="${by}" style="stroke:rgba(var(--ov-c),.25)" stroke-dasharray="2 4"/>`; }
   if (pts.length){ const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
-    s+=`<path d="${d} L${pts[pts.length-1][0]},${y(0)} L${pts[0][0]},${y(0)} Z" fill="rgba(187,239,31,.12)"/><path d="${d}" fill="none" stroke="var(--lime)" stroke-width="2.4" stroke-linejoin="round"/>`;
-    const L=pts[pts.length-1]; s+=`<circle cx="${L[0]}" cy="${L[1]}" r="5" fill="var(--lime)" stroke="#0D0303" stroke-width="2"/>`; }
+    s+=`<path d="${d} L${pts[pts.length-1][0]},${y(0)} L${pts[0][0]},${y(0)} Z" style="fill:rgba(var(--lime-c),.12)"/><path d="${d}" fill="none" style="stroke:var(--lime)" stroke-width="2.4" stroke-linejoin="round"/>`;
+    const L=pts[pts.length-1]; s+=`<circle cx="${L[0]}" cy="${L[1]}" r="5" style="fill:var(--lime);stroke:var(--bg)" stroke-width="2"/>`; }
   labels.forEach((l,i)=>{ if(i%5===0 || i===n-1) s+=`<text x="${padX+i*step}" y="${H-4}" text-anchor="middle">${esc(l)}</text>`; });
   return s+`</svg>`;
 }
 function pairBars(labels, inc, exp){
   const W=640, H=180, padB=20, padT=10, max=Math.max(1,...inc,...exp), gw=W/labels.length, bw=Math.min(26, gw*.3);
   let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Доходы и расходы по месяцам">`;
-  for(let g=1; g<=3; g++){ const y=padT+(H-padT-padB)*(1-g/3); s+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="2 5"/>`; }
+  for(let g=1; g<=3; g++){ const y=padT+(H-padT-padB)*(1-g/3); s+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" style="stroke:var(--line)" stroke-dasharray="2 5"/>`; }
   labels.forEach((l,i)=>{ const cx=gw*i+gw/2;
     [[inc[i],"var(--lime)",-1],[exp[i],"var(--pink)",1]].forEach(([v,c,sgn])=>{ const h=(H-padT-padB)*(v/max), x=cx+(sgn<0?-bw-2:2);
-      s+=`<rect x="${x}" y="${H-padB-h}" width="${bw}" height="${Math.max(h, v?2:0)}" rx="4" fill="${c}"><title>${esc(l)}: ${fmt(v)} ₽</title></rect>`; });
+      s+=`<rect x="${x}" y="${H-padB-h}" width="${bw}" height="${Math.max(h, v?2:0)}" rx="4" style="fill:${c}"><title>${esc(l)}: ${fmt(v)} ₽</title></rect>`; });
     s+=`<text x="${cx}" y="${H-4}" text-anchor="middle">${esc(l)}</text>`; });
   return s+`</svg>`;
 }
@@ -489,11 +489,11 @@ function moneyDash(ops, exp, inc, st, subs){
     <div class="card"><div class="lbl">К прошлому месяцу</div><div class="big">${dPrev===null?"—":(dPrev>0?"+":"")+dPrev+"%"}</div><div class="mute" style="font-size:13px">${prev.exp?`было ${rub(prev.exp)}`:"нет данных за прошлый месяц"}</div></div>
     <div class="card"><div class="lbl">Обязательные платежи</div><div class="big">${rub(oblig)}</div><div class="mute" style="font-size:13px">${obligShare===null?"в месяц":`${obligShare}% от доходов`}</div></div>
   </div>`,
-    advice: budgetLeftPerDay!==null?`<div class="banner" style="background:rgba(187,239,31,.08);border-color:rgba(187,239,31,.3)">Чтобы уложиться в бюджет, тратьте не больше <b class="num">${rub(budgetLeftPerDay)}</b> в день до конца месяца.</div>`:"",
+    advice: budgetLeftPerDay!==null?`<div class="banner" style="background:rgba(var(--lime-c),.08);border-color:rgba(var(--lime-c),.3)">Чтобы уложиться в бюджет, тратьте не больше <b class="num">${rub(budgetLeftPerDay)}</b> в день до конца месяца.</div>`:"",
     pace: `<div class="card"><h2>Расходы нарастающим итогом <span class="lbl">${st.budget?"пунктир — бюджет":"задайте бюджет, чтобы видеть линию"}</span></h2>${paceChart(cum, st.budget||0, perDay.map((_,i)=>String(i+1)), isCur?daysPassed-1:dim-1)}</div>`,
     daily: `<div class="card"><h2>Расходы по дням <span class="lbl">самый дорогой: ${perDay.indexOf(Math.max(...perDay))+1} ${MONTHS_G[m-1]}</span></h2>${barChart(perDay.slice(0, isCur?daysPassed:dim), perDay.slice(0, isCur?daysPassed:dim).map((_,i)=>String(i+1)), "var(--lime)")}</div>`,
     months: `<div class="card"><h2>Доходы и расходы за 6 месяцев <span class="lbl"><span class="dot" style="background:var(--lime)"></span> доходы · <span class="dot" style="background:var(--pink)"></span> расходы</span></h2>${pairBars(months.map(k=>MONTHS[Number(k.slice(5,7))-1].slice(0,3)), tot.map(x=>x.inc), tot.map(x=>x.exp))}</div>`,
-    weekday: `<div class="card"><h2>По дням недели <span class="lbl">в среднем за день</span></h2>${barChart(wdAvg, ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], "var(--ice)")}</div>`,
+    weekday: `<div class="card"><h2>По дням недели <span class="lbl">в среднем за день</span></h2>${barChart(wdAvg, ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], "var(--bar2)")}</div>`,
     cats: `<div class="card"><h2>Категории к прошлому месяцу</h2><div class="list">${catRows.map(([c,v,p])=>`<div class="item"><span class="t">${esc(c)}</span><span class="num">${rub(v)}</span>${chip(p)}</div>`).join("")}</div></div>`,
     top: `<div class="card"><h2>Самые крупные траты</h2><div class="list">${top.map(x=>`<div class="item"><span class="mute num" style="width:60px;white-space:nowrap;flex-shrink:0">${parseD(x.date).getDate()} ${MONTHS_G[parseD(x.date).getMonth()].slice(0,3)}</span><span class="t">${esc(x.note||x.cat)} <span class="chip">${esc(x.cat)}</span></span><span class="num">${rub(x.amount)}</span></div>`).join("")}</div></div>`
   };
