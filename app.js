@@ -362,22 +362,27 @@ function vHealth(){
 }
 /* ---------- MONEY ---------- */
 const CATS = {
- "Еда":["рыба","мясо","продукт","магнит","пятер","пятёр","перекрест","ашан","хлеб","молоко","овощ","фрукт","еда","магаз","лента","вкусвилл","курица"],
- "Кафе":["кафе","ресторан","обед","кофе","шаурм","пицц","доставк","столовая"],
- "Топливо":["дизель","солярк","дт","бензин","заправк","азс","топлив","газпромнефть","лукойл","роснефть","татнефть"],
- "Авто и ремонт":["запчаст","шин","резин","ремонт","автосервис","масло","фильтр","мойк","аккумулятор","колод","сервис"],
-  "Дом и стройка":["цемент","доск","кирпич","профлист","саморез","стройк","леруа","краск","труб","участок","сарай","баня"],
- "Коммуналка":["коммунал","свет","газ","вода","электричеств","жкх","вывоз"],
- "Связь":["телефон","связь","интернет","мтс","билайн","мегафон","теле2","tele2"],
- "Здоровье":["аптек","врач","клиник","анализ","лекарств","стоматолог"],
- "Одежда":["одежд","обув","куртк","штаны","кроссов"],
- "Подписки":["подписк","яндекс плюс","кинопоиск","icloud","spotify","claude"],
- "Развлечения":["кино","театр","боулинг","отдых","игр","бар"],
+ "Еда":["рыба","мясо","продукт","магнит","пятер","пятёр","перекрест","ашан","хлеб","молоко","овощ","фрукт","еда","магаз","лента","вкусвилл","курица","супермаркет","pyaterochka","magnit","perekrestok","lenta","auchan","vkusvill","dixy","дикси","spar","metro c&c","светофор","fix price"],
+ "Кафе":["кафе","ресторан","обед","кофе","шаурм","пицц","доставк","столовая","фастфуд","kfc","burger","бургер","mcdonald","вкусно и точка","coffee","cafe","restoran","додо","dodo"],
+ "Топливо":["дизель","солярк","дт","бензин","заправк","азс","топлив","газпромнефть","лукойл","роснефть","татнефть","lukoil","tatneft","rosneft","gazprom","azs","shell","teboil"],
+ "Авто и ремонт":["запчаст","шин","резин","автосервис","масло","фильтр","мойк","аккумулятор","колод","сервис","автоуслуг","avto","auto","zapchast","шиномонтаж","ремонт авто","ремонт"],
+  "Дом и стройка":["цемент","доск","кирпич","профлист","саморез","стройк","леруа","краск","труб","участок","сарай","баня","leroy","дом и ремонт","для дома","петрович","максидом","castorama","стройматер"],
+ "Маркетплейсы":["ozon","озон","wildberries","вайлдберриз","яндекс маркет","market.yandex","aliexpress","мегамаркет","avito","авито","маркетплейс"],
+ "Транспорт":["такси","taxi","метро","автобус","проезд","транспорт","каршеринг","ржд","аэрофлот"],
+ "Наличные":["наличн","банкомат","atm","снятие"],
+ "Коммуналка":["коммунал","свет","газ","вода","электричеств","жкх","вывоз","квартплат"],
+ "Связь":["телефон","связь","интернет","мтс","билайн","мегафон","теле2","tele2","mts","beeline","megafon","rostelecom","ростелеком"],
+ "Здоровье":["аптек","врач","клиник","анализ","лекарств","стоматолог","apteka","pharm","медицин","здоровье"],
+ "Одежда":["одежд","обув","куртк","штаны","кроссов","спортмастер","sportmaster"],
+ "Подписки":["подписк","яндекс плюс","кинопоиск","icloud","spotify","claude","apple.com","google play","yandex plus","plus.yandex"],
+ "Развлечения":["кино","театр","боулинг","отдых","игр","бар","развлечен"],
  "Дети и семья":["детск","школ","сад","игрушк","подарок"],
  "Переводы":["перевод","долг","займ"],
  "Кредиты":["кредит","рассрочк"],
  "Ипотека":["ипотек"]
 };
+const CATS_ALL = Object.fromEntries([...Object.keys(CATS), "Другое"].map(k => [k, 1]));
+const fmtD = d => { const x = parseD(d); return x.getDate() + " " + MONTHS_G[x.getMonth()] + " " + x.getFullYear(); };
 const INCOME_W = ["зарплат","доход","поступлен","аванс","получил","вернули","кэшбэк","кешбэк"];
 const CAT_COLOR = ["#BBEF1F","#FF0055","#EFF8FF","#d6f76a","#ff5c8f","#b9c6d1","#8fb81a","#c20041","#7e8a94"];
 function guessCat(s){ s=s.toLowerCase(); for (const [c,ws] of Object.entries(CATS)) if (ws.some(w=>s.includes(w))) return c; return "Другое"; }
@@ -539,6 +544,7 @@ function vMoney(){
   <form class="card" data-submit="addQuick"><div class="lbl" style="margin-bottom:8px">Быстрая запись</div>
     <div class="compose"><input type="text" id="qText" aria-label="Сумма и на что потрачено" name="q" placeholder="1000р рыба" autocomplete="off" data-input="quickPreview"><input type="date" id="qDate" aria-label="Дата операции" name="qd" value="${today()}" style="max-width:170px"><button class="btn pri">Записать</button></div>
     <div id="qPrev" class="mute" style="font-size:13px;margin-top:8px"></div></form>
+  ${impHtml()}
   <div class="hero">
     <div class="tile a"><span class="corner">${ICO.ruble}</span><div><div class="lbl">Баланс месяца</div><div class="big">${rub(inc-exp)}</div></div><div class="mute">доходы ${rub(inc)}</div></div>
     <div class="tile b"><span class="corner">${ICO.down}</span><div><div class="lbl">Расходы</div><div class="big">${rub(exp)}</div></div><div class="mute">${ops.filter(x=>x.type==="exp").length} операций</div></div>
@@ -550,6 +556,124 @@ function vMoney(){
   ${moneyTab==="cats"?`<div class="card"><div class="row" style="gap:26px;align-items:center">${cats.length?donut(cats.map(([c,v],i)=>[c,v,CAT_COLOR[i%CAT_COLOR.length]]),compact(exp)):""}<div class="bars" style="flex:1;min-width:240px">${cats.length?cats.map(([c,v],i)=>`<div class="bar"><span>${esc(c)}</span><i><b style="width:${v/cmax*100}%;background:${CAT_COLOR[i%CAT_COLOR.length]}"></b></i><span class="num" style="text-align:right">${rub(v)}</span></div>`).join(""):`<div class="empty">В этом месяце расходов нет.</div>`}</div></div></div>`:""}
   ${moneyTab==="ops"?`<div class="card"><div class="list">${ops.length?ops.map(x=>`<div class="item"><span class="mute num" style="width:52px">${parseD(x.date).getDate()} ${MONTHS_G[parseD(x.date).getMonth()].slice(0,3)}</span><span class="t">${esc(x.note||x.cat)} <span class="chip">${esc(x.cat)}</span></span><span class="num" style="color:${x.type==="inc"?"var(--good)":"var(--fg)"}">${x.type==="inc"?"+":"−"}${rub(x.amount)}</span><button class="icon" aria-label="Удалить" data-click="del" ${A("money",x.id)}>${ICO.x}</button></div>`).join(""):`<div class="empty">Операций нет. Запишите первую строкой выше, например «5600 дизель».</div>`}</div></div>`:""}
   ${moneyTab==="subs"?paymentsHtml(subs):""}`;
+}
+
+
+/* ---------- загрузка банковской выписки ---------- */
+// Файл разбирается прямо в браузере (bank.js + pdf.js из vendor/), на сервер уходят только операции.
+let imp = null; // { name, ops:[{date,type,amount,desc,cat,key,on,dup}], error, busy }
+const IMP_MAX_BYTES = 25 * 1024 * 1024;
+const BANK_CAT = [[/дом и ремонт|для дома|строймат/i,"Дом и стройка"],[/супермаркет|продукт/i,"Еда"],[/фастфуд|ресторан|кафе/i,"Кафе"],
+  [/топлив|азс/i,"Топливо"],[/автоуслуг|автомобил|авто/i,"Авто и ремонт"],[/транспорт|такси|каршер/i,"Транспорт"],[/аптек|медицин|здоров|красот/i,"Здоровье"],
+  [/связь|интернет|телеком/i,"Связь"],[/жкх|коммунал/i,"Коммуналка"],[/одежд|обув/i,"Одежда"],[/развлеч|отдых|кино/i,"Развлечения"],
+  [/маркетплейс/i,"Маркетплейсы"],[/наличн|банкомат/i,"Наличные"],[/подписк|цифров/i,"Подписки"],[/перевод/i,"Переводы"]];
+function catFor(o){
+  if (o.type === "inc") return "Доход";
+  const bc = (BANK_CAT.find(([re]) => o.bankCat && re.test(o.bankCat)) || [])[1];
+  if (bc) return bc;
+  const g = guessCat(o.desc || ""); if (g !== "Другое") return g;
+  return (BANK_CAT.find(([re]) => re.test(o.desc || "")) || [])[1] || "Другое";
+}
+function loadPdfJs(){
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise((res, rej) => {
+    const sc = document.createElement("script"); sc.src = "vendor/pdfjs/pdf.min.js";
+    sc.onload = () => { const L = window.pdfjsLib; if (!L) return rej(new Error("pdfjs")); L.GlobalWorkerOptions.workerSrc = "vendor/pdfjs/pdf.worker.min.js"; res(L); };
+    sc.onerror = () => rej(new Error("pdfjs")); document.head.appendChild(sc);
+  });
+}
+async function pdfItems(u8){
+  const L = await loadPdfJs();
+  // isEvalSupported:false — pdf.js не исполняет код из файла (защита от вредоносных PDF); шрифты не рисуем, нужен только текст
+  const doc = await L.getDocument({ data: u8.slice(), isEvalSupported: false, disableFontFace: true, useSystemFonts: false, enableXfa: false, cMapUrl: "vendor/pdfjs/cmaps/", cMapPacked: true }).promise;
+  const items = [];
+  try {
+    for (let i = 1; i <= Math.min(doc.numPages, 300); i++) {
+      const tc = await (await doc.getPage(i)).getTextContent();
+      tc.items.forEach(it => { if (typeof it.str === "string") items.push({ str: it.str, x: it.transform[4], y: it.transform[5], w: it.width, h: Math.abs(it.transform[3]) || it.height, page: i }); });
+    }
+  } finally { doc.destroy(); }
+  return items;
+}
+async function readStatement(name, u8){
+  const B = window.BankImport, kind = B.kindOf(name, u8);
+  try {
+    if (kind === "pdf") {
+      const items = await pdfItems(u8);
+      if (!items.some(it => it.str.trim())) return { ops: [], error: "В этом PDF нет текста — похоже, это скан или фото. Скачайте выписку заново в приложении банка (PDF, CSV или Excel)." };
+      const lines = B.itemsToLines(items);
+      return { ops: B.finalize(B.decideTypes(B.parseTextLines(lines))), lines };
+    }
+    if (kind === "xls") return { ops: [], error: "Это старый формат Excel (.xls). Откройте файл и сохраните как .xlsx, или скачайте выписку в PDF или CSV." };
+    if (kind === "xlsx") return B.fromTable(await B.readXlsx(u8));
+    return B.fromTable(B.parseCSV(B.decodeText(u8)));
+  } catch (e) {
+    if (e && e.name === "PasswordException") return { ops: [], error: "Файл защищён паролем. Скачайте выписку без пароля." };
+    return { ops: [], error: "Не получилось прочитать файл. Подойдёт выписка в PDF, CSV или Excel (.xlsx) из приложения банка." };
+  }
+}
+async function stmtFile(file){
+  if (!file) return;
+  if (file.size > IMP_MAX_BYTES) { imp = { name: file.name, ops: [], error: "Файл больше 25 МБ. Скачайте выписку за меньший период." }; render(); return; }
+  imp = { name: file.name, ops: [], busy: true }; render();
+  const u8 = new Uint8Array(await file.arrayBuffer());
+  const r = await readStatement(file.name, u8);
+  const loose = new Set(arr("money").map(m => [m.date, m.type, Number(m.amount).toFixed(2)].join("|")));
+  const ops = (r.ops || []).map(o => {
+    const dup = S.money[o.key] ? "уже загружено" : loose.has([o.date, o.type, o.amount.toFixed(2)].join("|")) ? "похоже, уже записано" : "";
+    return { date: o.date, type: o.type, amount: o.amount, desc: o.desc, cat: catFor(o), key: o.key, on: !dup, dup };
+  }).sort((a, b) => a.date.localeCompare(b.date));
+  imp = { name: file.name, ops, error: r.error || (ops.length ? "" : "Не нашёл в файле операций. Пришлите мне эту выписку в чат — настрою под ваш банк.") };
+  render();
+}
+function stmtPick(el){ const f = el.files && el.files[0]; el.value = ""; stmtFile(f); }
+function impTotals(){ const on = imp.ops.filter(o => o.on); return { n: on.length, exp: on.filter(o => o.type === "exp").reduce((s, o) => s + o.amount, 0), inc: on.filter(o => o.type === "inc").reduce((s, o) => s + o.amount, 0) }; }
+function impSumHtml(){ const t = impTotals(); return `Выбрано <b class="num">${t.n}</b> из ${imp.ops.length} · расходы <b class="num">${rub(t.exp)}</b> · доходы <b class="num">${rub(t.inc)}</b>`; }
+function drawImpSum(){ const el = $("#impSum"), b = $("#impSave"); if (el) el.innerHTML = impSumHtml(); if (b) { const n = impTotals().n; b.disabled = !n; b.textContent = n ? "Загрузить " + n : "Ничего не выбрано"; } }
+function stmtToggle(i, el){ if (imp && imp.ops[i]) { imp.ops[i].on = !!el.checked; const r = el.closest(".improw"); if (r) r.classList.toggle("off", !el.checked); drawImpSum(); } }
+function stmtAll(on){ if (!imp) return; imp.ops.forEach(o => o.on = on && !o.dup ? true : on ? o.on : false); render(); }
+function stmtCat(i, el){ if (imp && imp.ops[i] && Object.prototype.hasOwnProperty.call(CATS_ALL, el.value)) imp.ops[i].cat = el.value; }
+function stmtCancel(){ imp = null; render(); }
+async function stmtSave(){
+  if (!imp || imp.busy) return;
+  const list = imp.ops.filter(o => o.on);
+  if (!list.length) return;
+  const now = Date.now();
+  const rows = list.map((o, i) => ({ col: "money", id: o.key, data: { type: o.type, amount: o.amount, cat: o.cat, note: o.desc, date: o.date, created: now + i, src: "bank" } }));
+  imp.busy = true; drawImpSum();
+  rows.forEach(r => S.money[r.id] = r.data);
+  try {
+    for (let i = 0; i < rows.length; i += 500)
+      await api("items?on_conflict=user_id,col,id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: rows.slice(i, i + 500) });
+  } catch (e) {
+    imp.busy = false; handleErr(e);
+    try { await loadAll(); } catch (_) {}
+    return;
+  }
+  const months = {}; list.forEach(o => { const k = o.date.slice(0, 7); months[k] = (months[k] || 0) + 1; });
+  moneyMonth = Object.entries(months).sort((a, b) => b[1] - a[1])[0][0]; moneyPicked = true; moneyTab = "ops";
+  imp = null; render(); toast("Загружено операций: " + list.length);
+}
+function impHtml(){
+  if (!imp) return `<div class="card drop" id="stmtDrop"><div class="spread" style="gap:12px"><div><div class="lbl">Выписка из банка</div>
+      <div class="mute" style="font-size:13px;margin-top:4px">Перетащите файл сюда или выберите его. Подойдёт PDF, CSV или Excel из любого банка. Перед сохранением покажу, что нашлось.</div></div>
+      <label class="btn" for="stmtIn">Загрузить выписку</label></div>
+      <input type="file" id="stmtIn" class="vh" accept=".pdf,.csv,.xlsx,.xls,.txt,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" data-change="stmtPick"></div>`;
+  if (imp.busy && !imp.ops.length) return `<div class="card"><div class="lbl">Выписка: ${esc(imp.name)}</div><div class="mute" style="margin-top:6px">Читаю файл…</div></div>`;
+  if (imp.error && !imp.ops.length) return `<div class="card"><div class="spread"><div class="lbl">Выписка: ${esc(imp.name)}</div><button class="btn sm" data-click="stmtCancel">Закрыть</button></div><div class="banner" style="margin-top:10px">${esc(imp.error)}</div></div>`;
+  const first = imp.ops[0].date, last = imp.ops[imp.ops.length - 1].date, dups = imp.ops.filter(o => o.dup).length;
+  const cats = Object.keys(CATS_ALL);
+  return `<div class="card imp"><div class="spread" style="gap:10px"><div><h2 style="margin:0">Проверьте операции из выписки</h2>
+      <div class="mute" style="font-size:13px;margin-top:4px">${esc(imp.name)} · ${fmtD(first)} – ${fmtD(last)}${dups?` · ${dups} уже есть в Pulse, их не отметил`:""}</div></div>
+      <div class="row" style="gap:8px"><button class="btn sm" data-click="stmtAll" ${A(true)}>Отметить все</button><button class="btn sm" data-click="stmtAll" ${A(false)}>Снять все</button></div></div>
+    <div id="impSum" class="banner" style="margin:12px 0">${impSumHtml()}</div>
+    <div class="list implist">${imp.ops.map((o, i) => `<label class="item improw ${o.on?"":"off"}">
+        <input type="checkbox" ${o.on?"checked":""} data-change="stmtToggle" ${A(i)} aria-label="Загрузить операцию ${esc(o.desc)}">
+        <span class="mute num idate">${parseD(o.date).getDate()} ${MONTHS_G[parseD(o.date).getMonth()].slice(0,3)}</span>
+        <span class="t">${esc(o.desc || "Без описания")}${o.dup?` <span class="chip">${esc(o.dup)}</span>`:""}</span>
+        ${o.type==="exp"?`<select aria-label="Категория" data-change="stmtCat" ${A(i)}>${cats.map(c=>`<option ${c===o.cat?"selected":""}>${esc(c)}</option>`).join("")}</select>`:`<span class="chip good">доход</span>`}
+        <span class="num iamt" style="color:${o.type==="inc"?"var(--good)":"var(--fg)"}">${o.type==="inc"?"+":"−"}${rub(o.amount)}</span></label>`).join("")}</div>
+    <div class="row" style="justify-content:flex-end;gap:10px;margin-top:14px"><button class="btn" data-click="stmtCancel">Отмена</button><button class="btn pri" id="impSave" data-click="stmtSave" ${impTotals().n?"":"disabled"}>${impTotals().n?"Загрузить "+impTotals().n:"Ничего не выбрано"}</button></div></div>`;
 }
 
 /* ---------- HABITS ---------- */
@@ -682,6 +806,7 @@ const A = (...args) => `data-args="${esc(JSON.stringify(args))}"`;
 const ACTIONS = {
   go, del, toggleTask, quickDay, shiftMonth, pickMonth, paySub, toggleHabit, pickNote, newNote, noteInput, moveCard,
   setPayKindForm, setNoteGroup, noteSearch, toggleSticker, togglePin, noteFilterGroup, noteFilterSticker,
+  stmtPick, stmtToggle, stmtAll, stmtCat, stmtCancel, stmtSave,
   homeTab: k => { homeTab = k; render(); },
   taskTab: k => { taskTab = k; render(); },
   healthTab: k => { healthTab = k; render(); },
@@ -697,7 +822,11 @@ const ACTIONS = {
   addTask: f => addTask(f), addQuick: f => addQuick(f), addSub: f => addSub(f), addHabit: f => addHabit(f), addCard: (f, k) => addCard(f, k),
   logout: () => signOut()
 };
-const NEEDS_EL = new Set(["setHNum", "quickPreview", "setBudget", "setPayKindForm", "setNoteGroup", "noteSearch"]);
+const NEEDS_EL = new Set(["setHNum", "quickPreview", "setBudget", "setPayKindForm", "setNoteGroup", "noteSearch", "stmtPick", "stmtToggle", "stmtCat"]);
+// перетаскивание файла выписки на карточку «Выписка из банка»
+document.addEventListener("dragover", e => { const z = e.target.closest && e.target.closest("#stmtDrop"); if (z) { e.preventDefault(); z.classList.add("over"); } });
+document.addEventListener("dragleave", e => { const z = e.target.closest && e.target.closest("#stmtDrop"); if (z && !z.contains(e.relatedTarget)) z.classList.remove("over"); });
+document.addEventListener("drop", e => { const z = e.target.closest && e.target.closest("#stmtDrop"); if (!z) return; e.preventDefault(); z.classList.remove("over"); const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) stmtFile(f); });
 function runAction(el, attr, evt){
   const name = el.getAttribute(attr); const fn = Object.prototype.hasOwnProperty.call(ACTIONS, name) ? ACTIONS[name] : null;
   if (!fn) return;
@@ -794,7 +923,7 @@ async function signOut(){
   authMode = "login"; authMsg = "Вы вышли из кабинета."; drawAuth();
 }
 function wipeUi(){
-  COLS.forEach(c => S[c] = {}); curNote = null; noteGroup = null; noteSticker = null; noteQuery = ""; moneyPicked = false; moneyMonth = today().slice(0,7); moneyTab = "dash";
+  COLS.forEach(c => S[c] = {}); curNote = null; noteGroup = null; noteSticker = null; noteQuery = ""; moneyPicked = false; moneyMonth = today().slice(0,7); moneyTab = "dash"; imp = null;
   $("#view").innerHTML = ""; $("#nav").innerHTML = ""; $("#who").textContent = "";
 }
 function signedOut(msg){ applySession(null); wipeUi(); authMode = "login"; authMsg = msg || ""; drawAuth(); }

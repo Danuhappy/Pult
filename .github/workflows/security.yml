@@ -29,7 +29,7 @@ jobs:
           exit $code
       - name: Нет секретных ключей Supabase в публичных файлах
         run: |
-          if grep -nE 'sb_secret_[A-Za-z0-9_-]{10,}' index.html app.js config.js style.css; then
+          if grep -nE 'sb_secret_[A-Za-z0-9_-]{10,}' index.html app.js bank.js config.js style.css; then
             echo "Найден секретный ключ в публичном файле"; exit 1; fi
           python3 - <<'PY'
           import json,base64,re
@@ -40,3 +40,13 @@ jobs:
               assert role=='anon', f'В config.js ключ с ролью {role}, а нужен только anon'
           print('config.js: только публичный ключ')
           PY
+  statements:
+    name: Разбор банковских выписок
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: CSV и Excel разных банков разбираются без потерь
+        run: node tests/statements/check_tables.cjs

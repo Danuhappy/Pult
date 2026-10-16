@@ -8,6 +8,7 @@
 ## Из чего состоит
 
 - `index.html`, `app.js`, `style.css` — сам сайт (без сторонних библиотек).
+- `bank.js` — разбор выписок любых банков (PDF, CSV, Excel) прямо в браузере; `vendor/pdfjs/` — чтение PDF.
 - `config.js` — публичный адрес базы Supabase и publishable-ключ.
 - `supabase/schema.sql` — таблица и правила доступа (RLS).
 - `tests/` — проверки безопасности.

@@ -248,3 +248,21 @@ input[type=email],input[type=password]{background:var(--panel2);border:1px solid
 /* обязательные платежи */
 .paybar{height:6px;border-radius:3px;background:var(--track);overflow:hidden;margin:6px 0 2px;max-width:260px}
 .paybar b{display:block;height:100%;background:var(--lime);border-radius:3px}
+/* загрузка выписки */
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;padding:0;margin:-1px}
+.drop{border-style:dashed;transition:border-color .15s,background .15s}
+.drop.over{border-color:var(--lime);background:rgba(187,239,31,.08)}
+.drop label.btn{flex:none;cursor:pointer}
+.drop:focus-within label.btn{outline:2px solid var(--lime);outline-offset:2px}
+.implist{max-height:60vh;overflow:auto;overscroll-behavior:contain;padding-right:4px}
+.improw{cursor:pointer}
+.improw input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:var(--lime);margin:0}
+.improw.off{opacity:.5}
+.improw .idate{width:52px;flex:none;white-space:nowrap}
+.improw .iamt{flex:none;white-space:nowrap;text-align:right;min-width:92px}
+.improw select{flex:none;width:150px;padding:6px 8px;font-size:14px}
+@media (max-width:620px){
+  .improw{flex-wrap:wrap;row-gap:6px}
+  .improw .t{flex:1 1 calc(100% - 110px)}
+  .improw select{margin-left:30px;flex:1 1 auto;width:auto}
+}

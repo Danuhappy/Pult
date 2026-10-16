@@ -134,6 +134,42 @@ process.on("unhandledRejection", async e => { console.log("ERR", e.message.split
   check('Календарь листается по неделям', w1 !== w2);
   await page.click('[data-v="home"]'); const before = n('board'); await page.click('.kcard [data-click="del"]'); await page.waitForTimeout(150);
   check('Удаление работает', n('board') === before - 1);
+  // загрузка банковской выписки
+  const ST = require('path').join(__dirname, 'statements', 'out');
+  const EXP = JSON.parse(require('fs').readFileSync(ST + '/expected.json'));
+  const bankRows = () => rows.filter(r => r.col === 'money' && r.data.src === 'bank' && r.user_id === rows.find(x => x.col === 'tasks').user_id);
+  await page.click('[data-v="money"]');
+  await page.setInputFiles('#stmtIn', ST + '/sber.pdf'); await page.waitForSelector('#impSum', { timeout: 20000 });
+  check('Выписка Сбера (PDF): найдены все операции, суммы сходятся', (await page.textContent('#impSum')).includes(`Выбрано ${EXP.count} из ${EXP.count}`) && (await page.$$('.improw')).length === EXP.count);
+  const sumTxt = await page.textContent('#impSum'), want = await page.evaluate(e => [rub(e.exp), rub(e.inc)], EXP);
+  check('В предпросмотре верные итоги расходов и доходов', sumTxt.includes(want[0]) && sumTxt.includes(want[1]));
+  if (!(sumTxt.includes(want[0]) && sumTxt.includes(want[1]))) console.log('sum:', sumTxt, want);
+  await page.click('.improw input[type=checkbox] >> nth=0'); await page.waitForTimeout(50);
+  check('Снятая галочка уменьшает число к загрузке', (await page.textContent('#impSave')).includes(String(EXP.count - 1)));
+  await page.click('.improw input[type=checkbox] >> nth=0');
+  await page.selectOption('.improw select >> nth=0', 'Кафе');
+  await page.click('#impSave'); await page.waitForSelector('#impSum', { state: 'detached' }); await page.waitForTimeout(200);
+  const br = bankRows();
+  check('Операции из выписки сохранены одним пакетом', br.length === EXP.count && Math.round(br.filter(r => r.data.type === 'exp').reduce((s, r) => s + r.data.amount, 0) * 100) / 100 === EXP.exp);
+  check('Изменённая вручную категория сохранилась', br.some(r => r.data.cat === 'Кафе'));
+  check('Категории расставлены автоматически', br.filter(r => r.data.cat === 'Еда').length > 0 && br.filter(r => r.data.cat === 'Топливо').length > 0 && br.filter(r => r.data.type === 'inc').every(r => r.data.cat === 'Доход'));
+  check('После загрузки открыт нужный месяц со списком операций', (await page.textContent('#view')).includes('PYATEROCHKA') && (await page.textContent('.sub')).includes('сентябрь'));
+  await page.setInputFiles('#stmtIn', ST + '/sber.pdf'); await page.waitForSelector('#impSum');
+  check('Повторная загрузка той же выписки не создаёт дублей', (await page.textContent('#impSum')).includes(`Выбрано 0 из ${EXP.count}`) && await page.isDisabled('#impSave'));
+  await page.click('[data-click="stmtCancel"]');
+  await page.setInputFiles('#stmtIn', ST + '/tbank.csv'); await page.waitForSelector('#impSum');
+  check('Те же операции из другого файла (Т-Банк CSV) помечены как «похоже, уже записано»', (await page.textContent('#impSum')).includes(`Выбрано 0 из ${EXP.count}`) && (await page.textContent('.implist')).includes('похоже, уже записано'));
+  check('Отклонённая банком операция не попала в список', !(await page.textContent('.implist')).includes('ОТКЛОНЕНО'));
+  await page.click('[data-click="stmtCancel"]');
+  const tmp = require('os').tmpdir();
+  require('fs').writeFileSync(tmp + '/xss.csv', 'Дата;Сумма;Описание\n05.10.2026;-100,00;<img src=x onerror=alert(2)>Магазин\n');
+  await page.setInputFiles('#stmtIn', tmp + '/xss.csv'); await page.waitForSelector('#impSum');
+  check('Описание из файла показывается как текст (защита от XSS)', (await page.textContent('.implist')).includes('<img src=x onerror=alert(2)>Магазин') && (await page.$$('.implist img')).length === 0 && dialogs.length === 0);
+  await page.click('[data-click="stmtCancel"]');
+  require('fs').writeFileSync(tmp + '/junk.pdf', '%PDF-1.4 это не настоящий pdf');
+  await page.setInputFiles('#stmtIn', tmp + '/junk.pdf'); await page.waitForSelector('.banner:has-text("Не получилось прочитать")', { timeout: 15000 });
+  check('Битый файл: понятное сообщение, без падения', true);
+  await page.click('[data-click="stmtCancel"]');
   // все разделы рендерятся без ошибок
   await page.click('[data-v="habits"]'); check('Плашки про уведомления больше нет', !(await page.textContent('#view')).includes('Напишите в чат'));
   for (const v of ['home','tasks','habits','cal','health','money','notes']) { await page.click(`[data-v="${v}"]`); }
