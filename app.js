@@ -23,7 +23,7 @@ document.documentElement.lang="ru";
 const svgI = d => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICO = {
   x: svgI('<path d="M6 6l12 12M18 6L6 18"/>'), left: svgI('<path d="M15 6l-6 6 6 6"/>'), right: svgI('<path d="M9 6l6 6-6 6"/>'),
-  check: svgI('<path d="M5 12.5l4.5 4.5L19 7.5"/>'), ruble: svgI('<path d="M8 20V4h6a4 4 0 0 1 0 8H6M6 16h9"/>'),
+  check: svgI('<path d="M5 12.5l4.5 4.5L19 7.5"/>'), pin: svgI('<path d="M9 4h6l-1 6 3 3H7l3-3z"/><path d="M12 13v7"/>'), ruble: svgI('<path d="M8 20V4h6a4 4 0 0 1 0 8H6M6 16h9"/>'),
   moon: svgI('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>'), steps: svgI('<path d="M7 17L17 7M9 7h8v8"/>'), down: svgI('<path d="M12 5v14M6 13l6 6 6-6"/>')
 };
 /* ---------- data layer: Supabase (Auth + REST), без сторонних библиотек ---------- */
@@ -132,7 +132,7 @@ const IC = {
 };
 const VIEWS = [
  ["home","Обзор","home"],["tasks","Задачи","task"],["habits","Привычки","habit"],["cal","Календарь","cal"],["health","Здоровье","heart"],
- ["money","Финансы","money"],["notes","Заметки","note"],["board","Доски","board"]
+ ["money","Финансы","money"],["notes","Заметки","note"]
 ];
 let view = (location.hash||"").slice(1);
 if (!VIEWS.some(v=>v[0]===view)) view = "home";
@@ -154,7 +154,7 @@ function render(){
   drawNav();
   const a = document.activeElement, keep = a && a.id && /INPUT|TEXTAREA|SELECT/.test(a.tagName) ? {id:a.id,val:a.value,s:a.selectionStart,e:a.selectionEnd} : null;
   if (view==="notes" && keep && keep.id.startsWith("note")) { drawNoteList(); return; }
-  const fn = {home:vHome,habits:vHabits,tasks:vTasks,cal:vCal,health:vHealth,money:vMoney,notes:vNotes,board:vBoard}[view];
+  const fn = {home:vHome,habits:vHabits,tasks:vTasks,cal:vCal,health:vHealth,money:vMoney,notes:vNotes}[view];
   $("#view").innerHTML = (bannerHtml()) + fn();
   if (keep){ const el=document.getElementById(keep.id); if(el){ el.value=keep.val; el.focus(); try{el.setSelectionRange(keep.s,keep.e);}catch(_){} } }
 }
@@ -257,7 +257,7 @@ function vHome(){
   ${habitStrip()}
   <div class="grid g2">
     <div class="card">${tabList ? `<h2>${homeTab==="today"?"На сегодня":"Ближайшие 7 дней"} <button class="btn sm" data-click="go" ${A("tasks")}>Все задачи</button></h2>
-      <div class="list">${tabList.length?tabList.map(taskRow).join(""):`<div class="empty">${homeTab==="today"?"На сегодня пусто. Добавьте задачу или напишите ассистенту.":"На неделю ничего не запланировано."}</div>`}</div>`
+      <div class="list">${tabList.length?tabList.map(taskRow).join(""):`<div class="empty">${homeTab==="today"?"На сегодня пусто. Добавьте задачу в разделе «Задачи».":"На неделю ничего не запланировано."}</div>`}</div>`
       : `<h2>Итоги недели</h2><div class="grid g2">
         <div><div class="lbl">Средний счёт</div><div class="big">${avgScore}</div></div>
         <div><div class="lbl">Сделано задач</div><div class="big">${doneWeek}</div></div>
@@ -266,9 +266,10 @@ function vHome(){
     </div>
     <div class="card"><h2>Продуктивность <span class="lbl">счёт дня за 2 недели</span></h2>
       ${lineChart(scores, days.map(d=>String(parseD(d).getDate())), 100)}
-      ${subsSoon.length?`<div class="lbl" style="margin-top:14px">Списания на неделе</div><div class="list">${subsSoon.map(s=>`<div class="item"><span class="dot" style="background:var(--pink)"></span><span class="t">${esc(s.name)}</span><span class="mute">${dLabel(s.next)}</span><span class="num">${rub(s.price)}</span></div>`).join("")}</div>`:""}
+      ${subsSoon.length?`<div class="lbl" style="margin-top:14px">Платежи на неделе</div><div class="list">${subsSoon.map(s=>`<div class="item"><span class="dot" style="background:var(--pink)"></span><span class="t">${esc(s.name)}</span><span class="mute">${dLabel(s.next)}</span><span class="num">${rub(s.price)}</span></div>`).join("")}</div>`:""}
     </div>
-  </div>`;
+  </div>
+  ${boardHtml()}`;
 }
 
 /* ---------- TASKS ---------- */
@@ -373,7 +374,9 @@ const CATS = {
  "Подписки":["подписк","яндекс плюс","кинопоиск","icloud","spotify","claude"],
  "Развлечения":["кино","театр","боулинг","отдых","игр","бар"],
  "Дети и семья":["детск","школ","сад","игрушк","подарок"],
- "Переводы":["перевод","долг","займ"]
+ "Переводы":["перевод","долг","займ"],
+ "Кредиты":["кредит","рассрочк"],
+ "Ипотека":["ипотек"]
 };
 const INCOME_W = ["зарплат","доход","поступлен","аванс","получил","вернули","кэшбэк","кешбэк"];
 const CAT_COLOR = ["#BBEF1F","#FF0055","#EFF8FF","#d6f76a","#ff5c8f","#b9c6d1","#8fb81a","#c20041","#7e8a94"];
@@ -391,19 +394,135 @@ function parseQuick(text){
 function quickPreview(v){ if(v && v.value!==undefined) v=v.value; const p=parseQuick(v), el=$("#qPrev"); if(!el) return; el.innerHTML = p?`${p.type==="inc"?'<span class="chip good">доход</span>':'<span class="chip">расход</span>'} <b class="num">${rub(p.amount)}</b> · ${esc(p.cat)}${p.note?" · "+esc(p.note):""}`:'Пример: <span class="num">1000р рыба</span>, <span class="num">5600 дизель</span>, <span class="num">+80000 зарплата</span>'; }
 function addQuick(f){ const p=parseQuick(f.q.value); if(!p) return need(f.q,"Начните с суммы, например: 1000 продукты");
   save("money",uid(),{...p,date:f.qd.value||today(),created:Date.now()}); f.q.value=""; quickPreview(""); toast("Записано: "+rub(p.amount)); return false; }
-let moneyMonth = today().slice(0,7), moneyTab="ops", moneyPicked=false;
+let moneyMonth = today().slice(0,7), moneyTab="dash", moneyPicked=false;
 function monthsWithMoney(){ const m={}; arr("money").forEach(x=>{ if(x.date){ const k=x.date.slice(0,7); m[k]=(m[k]||0)+1; } }); return Object.keys(m).sort().reverse().map(k=>[k,m[k]]); }
 function pickMonth(k){ moneyMonth=k; moneyPicked=true; render(); }
 function shiftMonth(n){ moneyPicked=true;  const [y,m]=moneyMonth.split("-").map(Number); const d=new Date(y,m-1+n,1); moneyMonth=ymd(d).slice(0,7); render(); }
 function setBudget(v){ if(v && v.value!==undefined) v=v.value; const st={...(S.meta.settings||{}),budget:+v||0}; save("meta","settings",st); }
 function need(el,msg){ el.classList.add("bad"); el.focus(); toast(msg); el.addEventListener("input",()=>el.classList.remove("bad"),{once:true}); return false; }
 const numIn = v => parseFloat(String(v).replace(/\s/g,"").replace(",","."));
-function addSub(f){ const name=f.sn.value.trim(), price=numIn(f.sp.value);
-  if(!name) return need(f.sn,"Напишите название подписки");
-  if(!(price>0)) return need(f.sp,"Укажите цену, например 399");
-  save("subs",uid(),{name,price,period:f.spd.value,next:f.snx.value||today()}); f.sn.value="";f.sp.value=""; toast("Подписка добавлена"); return false; }
+/* обязательные платежи: подписки, кредиты, ипотека, коммуналка */
+const PAY_KINDS = { sub:"Подписка", loan:"Кредит", mortgage:"Ипотека", util:"Коммуналка", other:"Другое" };
+const PAY_CAT = { sub:"Подписки", loan:"Кредиты", mortgage:"Ипотека", util:"Коммуналка", other:"Обязательные" };
+const payKind = s => PAY_KINDS[s.kind] ? s.kind : "sub";
+const isDebt = s => ["loan","mortgage"].includes(payKind(s));
+const monthlyOf = s => s.period === "year" ? s.price/12 : s.price;
+function addSub(f){
+  const name=f.sn.value.trim(), price=numIn(f.sp.value), kind=PAY_KINDS[f.sk.value]?f.sk.value:"sub";
+  const rest=f.sr && f.sr.value.trim() ? numIn(f.sr.value) : null;
+  if(!name) return need(f.sn,"Напишите название платежа");
+  if(!(price>0)) return need(f.sp,"Укажите сумму платежа, например 15000");
+  if(rest!==null && !(rest>=0)) return need(f.sr,"Остаток долга — число, например 850000");
+  const data={name:name.slice(0,60),price,kind,period:f.spd.value==="year"?"year":"month",next:f.snx.value||today()};
+  if(isDebt(data) && rest!==null){ data.rest=rest; data.total=rest; }
+  save("subs",uid(),data); f.sn.value=""; f.sp.value=""; if(f.sr) f.sr.value="";
+  toast(PAY_KINDS[kind]+" добавлен"+(kind==="mortgage"||kind==="util"?"а":"")); return false;
+}
 function paySub(id){ const s=S.subs[id]; if(!s) return; const d=parseD(s.next||today()); if(s.period==="year") d.setFullYear(d.getFullYear()+1); else d.setMonth(d.getMonth()+1);
-  save("subs",id,{...s,next:ymd(d)}); save("money",uid(),{type:"exp",amount:s.price,cat:"Подписки",note:s.name,date:today(),created:Date.now()}); toast("Списание записано"); }
+  const upd={...s,next:ymd(d)}; if(isDebt(s) && typeof s.rest==="number") upd.rest=Math.max(0, Math.round((s.rest-s.price)*100)/100);
+  save("subs",id,upd); save("money",uid(),{type:"exp",amount:s.price,cat:PAY_CAT[payKind(s)],note:s.name,date:today(),created:Date.now()});
+  toast(isDebt(s)&&typeof upd.rest==="number" ? "Платёж записан, остаток "+rub(upd.rest) : "Платёж записан"); }
+function setPayKindForm(el){ const f=el.form; if(!f) return; const box=f.querySelector("#sRestBox"); if(box) box.hidden=!["loan","mortgage"].includes(el.value); }
+
+/* графики для аналитики */
+function paceChart(cum, budget, labels, todayIdx){
+  const W=640, H=180, padT=16, padB=20, padX=12, n=cum.length, max=Math.max(1, budget||0, ...cum)*1.08, step=(W-padX*2)/(n-1||1);
+  const y=v=>padT+(H-padT-padB)*(1-v/max);
+  const pts=cum.map((v,i)=>[padX+i*step,y(v)]).slice(0, todayIdx+1);
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Расходы нарастающим итогом">`;
+  for(let g=0; g<=2; g++){ const yy=padT+(H-padT-padB)*g/2; s+=`<line x1="0" x2="${W}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-dasharray="2 6"/>`; }
+  if (budget>0){ const by=y(budget); s+=`<line x1="${padX}" x2="${W-padX}" y1="${by}" y2="${by}" stroke="var(--pink)" stroke-width="1.5" stroke-dasharray="6 5"/><text x="${W-padX}" y="${by-6}" text-anchor="end" style="fill:var(--pink)">бюджет ${esc(compact(budget))}</text>`;
+    s+=`<line x1="${padX}" y1="${y(0)}" x2="${W-padX}" y2="${by}" stroke="rgba(239,248,255,.25)" stroke-dasharray="2 4"/>`; }
+  if (pts.length){ const d=pts.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join(" ");
+    s+=`<path d="${d} L${pts[pts.length-1][0]},${y(0)} L${pts[0][0]},${y(0)} Z" fill="rgba(187,239,31,.12)"/><path d="${d}" fill="none" stroke="var(--lime)" stroke-width="2.4" stroke-linejoin="round"/>`;
+    const L=pts[pts.length-1]; s+=`<circle cx="${L[0]}" cy="${L[1]}" r="5" fill="var(--lime)" stroke="#0D0303" stroke-width="2"/>`; }
+  labels.forEach((l,i)=>{ if(i%5===0 || i===n-1) s+=`<text x="${padX+i*step}" y="${H-4}" text-anchor="middle">${esc(l)}</text>`; });
+  return s+`</svg>`;
+}
+function pairBars(labels, inc, exp){
+  const W=640, H=180, padB=20, padT=10, max=Math.max(1,...inc,...exp), gw=W/labels.length, bw=Math.min(26, gw*.3);
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Доходы и расходы по месяцам">`;
+  for(let g=1; g<=3; g++){ const y=padT+(H-padT-padB)*(1-g/3); s+=`<line x1="0" x2="${W}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-dasharray="2 5"/>`; }
+  labels.forEach((l,i)=>{ const cx=gw*i+gw/2;
+    [[inc[i],"var(--lime)",-1],[exp[i],"var(--pink)",1]].forEach(([v,c,sgn])=>{ const h=(H-padT-padB)*(v/max), x=cx+(sgn<0?-bw-2:2);
+      s+=`<rect x="${x}" y="${H-padB-h}" width="${bw}" height="${Math.max(h, v?2:0)}" rx="4" fill="${c}"><title>${esc(l)}: ${fmt(v)} ₽</title></rect>`; });
+    s+=`<text x="${cx}" y="${H-4}" text-anchor="middle">${esc(l)}</text>`; });
+  return s+`</svg>`;
+}
+const pct = (a,b) => b ? Math.round((a-b)/b*100) : null;
+function monthTotals(ym){ const ops=arr("money").filter(x=>x.date && x.date.startsWith(ym));
+  return { exp: ops.filter(x=>x.type==="exp").reduce((s,x)=>s+x.amount,0), inc: ops.filter(x=>x.type==="inc").reduce((s,x)=>s+x.amount,0), ops }; }
+const shiftYm = (ym,n) => { const [y,m]=ym.split("-").map(Number); return ymd(new Date(y,m-1+n,1)).slice(0,7); };
+
+function moneyDash(ops, exp, inc, st, subs){
+  const [y,m]=moneyMonth.split("-").map(Number), dim=new Date(y,m,0).getDate(), t=today(), isCur=t.slice(0,7)===moneyMonth;
+  const daysPassed = isCur ? Number(t.slice(8,10)) : (moneyMonth < t.slice(0,7) ? dim : 0);
+  const exps=ops.filter(x=>x.type==="exp");
+  if (!exps.length) return `<div class="card"><div class="empty" style="padding:0">В этом месяце расходов нет — графики появятся, когда вы запишете первые траты или загрузите выписку.</div></div>`;
+  const perDay=Array(dim).fill(0); exps.forEach(x=>{ const d=Number(x.date.slice(8,10)); if(d>=1&&d<=dim) perDay[d-1]+=x.amount; });
+  const cum=[]; perDay.reduce((a,v,i)=>(cum[i]=a+v), 0);
+  const avg = daysPassed ? exp/daysPassed : 0, forecast = isCur ? avg*dim : exp;
+  const prev = monthTotals(shiftYm(moneyMonth,-1)), dPrev = pct(exp, prev.exp);
+  const oblig = subs.reduce((s,x)=>s+monthlyOf(x),0), obligShare = inc ? Math.round(oblig/inc*100) : null;
+  // 6 месяцев
+  const months=[...Array(6)].map((_,i)=>shiftYm(moneyMonth,i-5)), tot=months.map(monthTotals);
+  // дни недели
+  const wd=[0,0,0,0,0,0,0], wdN=[0,0,0,0,0,0,0]; for(let d=1; d<=Math.max(daysPassed,1) && d<=dim; d++){ const k=(new Date(y,m-1,d).getDay()+6)%7; wd[k]+=perDay[d-1]; wdN[k]++; }
+  const wdAvg=wd.map((v,i)=>wdN[i]?v/wdN[i]:0);
+  // категории к прошлому месяцу
+  const byCat=c=>{ const o={}; c.filter(x=>x.type==="exp").forEach(x=>o[x.cat]=(o[x.cat]||0)+x.amount); return o; };
+  const cNow=byCat(ops), cPrev=byCat(prev.ops);
+  const catRows=Object.entries(cNow).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([c,v])=>{ const p=pct(v,cPrev[c]||0); return [c,v,cPrev[c]?p:null]; });
+  const top=[...exps].sort((a,b)=>b.amount-a.amount).slice(0,5);
+  const chip=(p,inverse)=> p===null?`<span class="chip">новое</span>`:`<span class="chip ${(p>0)!==!!inverse?"bad":"good"}">${p>0?"▲":p<0?"▼":"•"} ${Math.abs(p)}%</span>`;
+  const budgetLeftPerDay = st.budget && isCur ? Math.max(0, st.budget-exp)/Math.max(1, dim-daysPassed+1) : null;
+  return `
+  <div class="grid g4">
+    <div class="card"><div class="lbl">В среднем в день</div><div class="big">${rub(avg)}</div><div class="mute" style="font-size:13px">за ${daysPassed} ${daysPassed%10===1&&daysPassed!==11?"день":(daysPassed%10>=2&&daysPassed%10<=4&&(daysPassed<12||daysPassed>14))?"дня":"дней"}</div></div>
+    <div class="card"><div class="lbl">${isCur?"Прогноз на месяц":"Итого за месяц"}</div><div class="big">${rub(forecast)}</div><div class="mute" style="font-size:13px">${st.budget?(forecast>st.budget?`<span style="color:var(--bad)">выше бюджета на ${rub(forecast-st.budget)}</span>`:`в рамках бюджета`):"бюджет не задан"}</div></div>
+    <div class="card"><div class="lbl">К прошлому месяцу</div><div class="big">${dPrev===null?"—":(dPrev>0?"+":"")+dPrev+"%"}</div><div class="mute" style="font-size:13px">${prev.exp?`было ${rub(prev.exp)}`:"нет данных за прошлый месяц"}</div></div>
+    <div class="card"><div class="lbl">Обязательные платежи</div><div class="big">${rub(oblig)}</div><div class="mute" style="font-size:13px">${obligShare===null?"в месяц":`${obligShare}% от доходов`}</div></div>
+  </div>
+  ${budgetLeftPerDay!==null?`<div class="banner" style="background:rgba(187,239,31,.08);border-color:rgba(187,239,31,.3)">Чтобы уложиться в бюджет, тратьте не больше <b class="num">${rub(budgetLeftPerDay)}</b> в день до конца месяца.</div>`:""}
+  <div class="grid g2">
+    <div class="card"><h2>Расходы нарастающим итогом <span class="lbl">${st.budget?"пунктир — бюджет":"задайте бюджет, чтобы видеть линию"}</span></h2>${paceChart(cum, st.budget||0, perDay.map((_,i)=>String(i+1)), isCur?daysPassed-1:dim-1)}</div>
+    <div class="card"><h2>Расходы по дням <span class="lbl">самый дорогой: ${perDay.indexOf(Math.max(...perDay))+1} ${MONTHS_G[m-1]}</span></h2>${barChart(perDay.slice(0, isCur?daysPassed:dim), perDay.slice(0, isCur?daysPassed:dim).map((_,i)=>String(i+1)), "var(--lime)")}</div>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h2>Доходы и расходы за 6 месяцев <span class="lbl"><span class="dot" style="background:var(--lime)"></span> доходы · <span class="dot" style="background:var(--pink)"></span> расходы</span></h2>${pairBars(months.map(k=>MONTHS[Number(k.slice(5,7))-1].slice(0,3)), tot.map(x=>x.inc), tot.map(x=>x.exp))}</div>
+    <div class="card"><h2>По дням недели <span class="lbl">в среднем за день</span></h2>${barChart(wdAvg, ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], "var(--ice)")}</div>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h2>Категории к прошлому месяцу</h2><div class="list">${catRows.map(([c,v,p])=>`<div class="item"><span class="t">${esc(c)}</span><span class="num">${rub(v)}</span>${chip(p)}</div>`).join("")}</div></div>
+    <div class="card"><h2>Самые крупные траты</h2><div class="list">${top.map(x=>`<div class="item"><span class="mute num" style="width:60px;white-space:nowrap;flex-shrink:0">${parseD(x.date).getDate()} ${MONTHS_G[parseD(x.date).getMonth()].slice(0,3)}</span><span class="t">${esc(x.note||x.cat)} <span class="chip">${esc(x.cat)}</span></span><span class="num">${rub(x.amount)}</span></div>`).join("")}</div></div>
+  </div>`;
+}
+
+function paymentsHtml(subs){
+  const groups=[["debt","Кредиты и ипотека",s=>isDebt(s)],["sub","Подписки",s=>payKind(s)==="sub"],["rest","Коммуналка и другое",s=>["util","other"].includes(payKind(s))]];
+  const row=s=>{ const debt=isDebt(s), hasRest=debt&&typeof s.rest==="number", months=hasRest&&s.price?Math.ceil(s.rest/s.price):null, paid=hasRest&&s.total?Math.min(100,Math.round((1-s.rest/s.total)*100)):null;
+    return `<div class="item" style="flex-wrap:wrap">
+      <span class="t">${esc(s.name)} <span class="chip">${PAY_KINDS[payKind(s)]}</span> <span class="chip">${s.period==="year"?"раз в год":"в месяц"}</span>
+        ${hasRest?`<div class="mute" style="font-size:13px;margin-top:4px">Остаток ${rub(s.rest)}${months?` · ещё ≈ ${months} ${months%10===1&&months%100!==11?"платёж":(months%10>=2&&months%10<=4&&(months%100<12||months%100>14))?"платежа":"платежей"}`:""}</div>${paid!==null?`<div class="paybar"><b style="width:${paid}%"></b></div><div class="mute" style="font-size:12px">выплачено ${paid}%</div>`:""}`:""}</span>
+      <span class="mute">${s.next?dLabel(s.next):""}</span><span class="num">${rub(s.price)}</span>
+      <button class="btn sm" data-click="paySub" ${A(s.id)} title="Записать расход и перенести дату">Оплачено</button><button class="icon" aria-label="Удалить" data-click="del" ${A("subs",s.id)}>${ICO.x}</button></div>`; };
+  const total=subs.reduce((a,s)=>a+monthlyOf(s),0), debt=subs.filter(isDebt).reduce((a,s)=>a+(typeof s.rest==="number"?s.rest:0),0);
+  return `<form class="card form" data-submit="addSub">
+      <label>Тип<select id="sKind" name="sk" data-change="setPayKindForm">${Object.entries(PAY_KINDS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
+      <label>Название<input type="text" id="sName" name="sn" placeholder="Ипотека Сбер, Яндекс Плюс…" maxlength="60"></label>
+      <label>Платёж, ₽<input type="text" inputmode="decimal" id="sPrice" name="sp" placeholder="15000" autocomplete="off"></label>
+      <label>Период<select id="sPer" name="spd"><option value="month">Каждый месяц</option><option value="year">Раз в год</option></select></label>
+      <label>Следующий платёж<input type="date" id="sNext" name="snx" value="${today()}"></label>
+      <label id="sRestBox" hidden>Остаток долга, ₽<input type="text" inputmode="decimal" id="sRest" name="sr" placeholder="850000" autocomplete="off"></label>
+      <button class="btn pri">Добавить</button></form>
+    <div class="grid g2">
+      <div class="card"><div class="lbl">Все обязательные платежи в месяц</div><div class="big">${rub(total)}</div></div>
+      <div class="card"><div class="lbl">Общий остаток по кредитам</div><div class="big">${debt?rub(debt):"—"}</div></div>
+    </div>
+    ${subs.length?groups.map(([k,n,f])=>{ const g=subs.filter(f); return g.length?`<div class="card"><h2>${n} <span class="mute num">${rub(g.reduce((a,s)=>a+monthlyOf(s),0))} / мес</span></h2><div class="list">${g.map(row).join("")}</div></div>`:""; }).join("")
+      :`<div class="card"><div class="empty" style="padding:0">Платежей пока нет. Добавьте кредит, ипотеку, подписку или коммуналку — «Пульт» напомнит на «Обзоре» и в календаре, а кнопка «Оплачено» сама запишет расход.</div></div>`}`;
+}
+
 function vMoney(){
   const st=settings(), [y,m]=moneyMonth.split("-").map(Number);
   const ops=arr("money").filter(x=>x.date && x.date.startsWith(moneyMonth)).sort((a,b)=>b.date.localeCompare(a.date)||(b.created||0)-(a.created||0));
@@ -411,12 +530,12 @@ function vMoney(){
   const byCat={}; ops.filter(x=>x.type==="exp").forEach(x=>byCat[x.cat]=(byCat[x.cat]||0)+x.amount);
   const cats=Object.entries(byCat).sort((a,b)=>b[1]-a[1]); const cmax=cats.length?cats[0][1]:1;
   const subs=arr("subs").sort((a,b)=>(a.next||"").localeCompare(b.next||""));
-  const subMonth=subs.reduce((s,x)=>s+(x.period==="year"?x.price/12:x.price),0);
+  const subMonth=subs.reduce((s,x)=>s+monthlyOf(x),0);
   const left = st.budget ? st.budget-exp : null;
   return `<div class="spread"><div><h1>Финансы</h1><div class="sub">${MONTHS[m-1]} ${y}</div></div>
     <div class="row"><button class="btn sm" data-click="shiftMonth" ${A(-1)} aria-label="Предыдущий месяц">${ICO.left}</button><button class="btn sm" data-click="shiftMonth" ${A(1)} aria-label="Следующий месяц">${ICO.right}</button></div></div>
   ${(()=>{ const ms=monthsWithMoney(); if(!ms.length) return ""; return `<div class="tabs" role="tablist" aria-label="Месяцы с операциями">${ms.map(([k,n])=>{ const [yy,mm]=k.split("-").map(Number); return `<button class="${k===moneyMonth?"on":""}" data-click="pickMonth" ${A(k)}>${MONTHS[mm-1]}${yy!==new Date().getFullYear()?" "+yy:""}<span class="num">${n}</span></button>`; }).join("")}</div>`; })()}
-  ${!ops.length && monthsWithMoney().length ? `<div class="banner">В этом месяце операций нет. Выберите месяц выше — например, ${(()=>{const [yy,mm]=monthsWithMoney()[0][0].split("-").map(Number);return MONTHS[mm-1];})()}.</div>` : ""}
+  ${!ops.length && monthsWithMoney().length && moneyTab!=="subs" ? `<div class="banner">В этом месяце операций нет. Выберите месяц выше — например, ${(()=>{const [yy,mm]=monthsWithMoney()[0][0].split("-").map(Number);return MONTHS[mm-1];})()}.</div>` : ""}
   <form class="card" data-submit="addQuick"><div class="lbl" style="margin-bottom:8px">Быстрая запись</div>
     <div class="compose"><input type="text" id="qText" aria-label="Сумма и на что потрачено" name="q" placeholder="1000р рыба" autocomplete="off" data-input="quickPreview"><input type="date" id="qDate" aria-label="Дата операции" name="qd" value="${today()}" style="max-width:170px"><button class="btn pri">Записать</button></div>
     <div id="qPrev" class="mute" style="font-size:13px;margin-top:8px"></div></form>
@@ -424,18 +543,13 @@ function vMoney(){
     <div class="tile a"><span class="corner">${ICO.ruble}</span><div><div class="lbl">Баланс месяца</div><div class="big">${rub(inc-exp)}</div></div><div class="mute">доходы ${rub(inc)}</div></div>
     <div class="tile b"><span class="corner">${ICO.down}</span><div><div class="lbl">Расходы</div><div class="big">${rub(exp)}</div></div><div class="mute">${ops.filter(x=>x.type==="exp").length} операций</div></div>
     <div class="tile"><div class="lbl">Бюджет на месяц</div><input type="number" id="budget" aria-label="Бюджет на месяц, рублей" value="${esc(st.budget||"")}" placeholder="не задан" data-change="setBudget" style="width:100%;font-size:18px"><div class="${left!==null&&left<0?"":"mute"}" style="${left!==null&&left<0?"color:var(--bad)":""}">${left===null?"задайте лимит":left>=0?"осталось "+rub(left):"перерасход "+rub(-left)}</div></div>
-    <div class="tile"><div class="lbl">Подписки в месяц</div><div class="big">${rub(subMonth)}</div><div class="mute">${subs.length} шт.</div></div>
+    <div class="tile"><div class="lbl">Обязательные в месяц</div><div class="big">${rub(subMonth)}</div><div class="mute">${subs.length} платеж${subs.length%10===1&&subs.length%100!==11?"":(subs.length%10>=2&&subs.length%10<=4&&(subs.length%100<12||subs.length%100>14))?"а":"ей"}</div></div>
   </div>
-  <div class="tabs">${[["ops","Операции"],["cats","По категориям"],["subs","Подписки"]].map(([k,n])=>`<button class="${k===moneyTab?"on":""}" data-click="moneyTab" ${A(k)}>${n}</button>`).join("")}</div>
+  <div class="tabs">${[["dash","Аналитика"],["ops","Операции"],["cats","По категориям"],["subs","Обязательные платежи"]].map(([k,n])=>`<button class="${k===moneyTab?"on":""}" data-click="moneyTab" ${A(k)}>${n}</button>`).join("")}</div>
+  ${moneyTab==="dash"?moneyDash(ops, exp, inc, st, subs):""}
   ${moneyTab==="cats"?`<div class="card"><div class="row" style="gap:26px;align-items:center">${cats.length?donut(cats.map(([c,v],i)=>[c,v,CAT_COLOR[i%CAT_COLOR.length]]),compact(exp)):""}<div class="bars" style="flex:1;min-width:240px">${cats.length?cats.map(([c,v],i)=>`<div class="bar"><span>${esc(c)}</span><i><b style="width:${v/cmax*100}%;background:${CAT_COLOR[i%CAT_COLOR.length]}"></b></i><span class="num" style="text-align:right">${rub(v)}</span></div>`).join(""):`<div class="empty">В этом месяце расходов нет.</div>`}</div></div></div>`:""}
   ${moneyTab==="ops"?`<div class="card"><div class="list">${ops.length?ops.map(x=>`<div class="item"><span class="mute num" style="width:52px">${parseD(x.date).getDate()} ${MONTHS_G[parseD(x.date).getMonth()].slice(0,3)}</span><span class="t">${esc(x.note||x.cat)} <span class="chip">${esc(x.cat)}</span></span><span class="num" style="color:${x.type==="inc"?"var(--good)":"var(--fg)"}">${x.type==="inc"?"+":"−"}${rub(x.amount)}</span><button class="icon" aria-label="Удалить" data-click="del" ${A("money",x.id)}>${ICO.x}</button></div>`).join(""):`<div class="empty">Операций нет. Запишите первую строкой выше, например «5600 дизель».</div>`}</div></div>`:""}
-  ${moneyTab==="subs"?`<form class="card form" data-submit="addSub">
-      <label>Название<input type="text" id="sName" name="sn" placeholder="Яндекс Плюс"></label>
-      <label>Цена, ₽<input type="text" inputmode="decimal" id="sPrice" name="sp" placeholder="399" autocomplete="off"></label>
-      <label>Период<select id="sPer" name="spd"><option value="month">Каждый месяц</option><option value="year">Раз в год</option></select></label>
-      <label>Следующее списание<input type="date" id="sNext" name="snx" value="${today()}"></label>
-      <button class="btn pri">Добавить</button></form>
-    <div class="card"><div class="list">${subs.length?subs.map(s=>`<div class="item"><span class="t">${esc(s.name)} <span class="chip">${s.period==="year"?"в год":"в месяц"}</span></span><span class="mute">${s.next?dLabel(s.next):""}</span><span class="num">${rub(s.price)}</span><button class="btn sm" data-click="paySub" ${A(s.id)} title="Записать расход и перенести дату">Оплачено</button><button class="icon" aria-label="Удалить" data-click="del" ${A("subs",s.id)}>${ICO.x}</button></div>`).join(""):`<div class="empty">Подписок пока нет.</div>`}</div></div>`:""}`;
+  ${moneyTab==="subs"?paymentsHtml(subs):""}`;
 }
 
 /* ---------- HABITS ---------- */
@@ -485,38 +599,79 @@ function vHabits(){
         <button class="icon" aria-label="Удалить" data-click="del" ${A("habits",x.id)}>${ICO.x}</button></div>
       <div class="week7">${last7.map(d=>{ const dd=habitDue(x,d), dn=(x.log||{})[d]; return `<div><i class="${dn?"on":dd?"":"off"}" ${dd&&d!==t?`role="button" tabindex="0" aria-pressed="${!!dn}" aria-label="${esc(x.name)}, ${dLabel(d)}" data-click="toggleHabit" ${A(x.id,d)}`:""}></i>${WD[parseD(d).getDay()]}</div>`; }).join("")}</div>
       <div class="spread"><span class="chip">${st?`серия ${st} ${st%10===1&&st%100!==11?"день":(st%10>=2&&st%10<=4&&(st%100<12||st%100>14))?"дня":"дней"}`:"серия не начата"}</span><span class="mute" style="font-size:13px">за 30 дней ${habitRate(x)}%</span></div>
-    </div>`; }).join("")}</div>`:`<div class="card"><div class="empty" style="padding:0">Привычек пока нет. Например: зарядка, вода утром, 20 минут чтения, без телефона после 23:00.</div></div>`}
-  <div class="card"><h2>Уведомления</h2><div class="mute" style="font-size:14px;max-width:62ch">Уведомления приходят через «Напоминания» на iPhone. Напишите в чат с Claude, какие привычки и во сколько напоминать, и он поставит повторяющиеся напоминания. Отмечать выполнение можно здесь или на «Обзоре».</div></div>`;
+    </div>`; }).join("")}</div>`:`<div class="card"><div class="empty" style="padding:0">Привычек пока нет. Например: зарядка, вода утром, 20 минут чтения, без телефона после 23:00.</div></div>`}`;
 }
 
 /* ---------- NOTES ---------- */
-let curNote=null, noteTimer=null;
-function newNote(){ const id=uid(); curNote=id; save("notes",id,{title:"",text:"",updated:Date.now()}); setTimeout(()=>{const e=$("#noteTitle"); e&&e.focus();},0); }
-function noteInput(){ clearTimeout(noteTimer); noteTimer=setTimeout(()=>{ if(!curNote) return; save("notes",curNote,{title:$("#noteTitle").value,text:$("#noteText").value,updated:Date.now()}); },700); }
+const STICKERS = [["star","⭐","Важное"],["fire","🔥","Срочно"],["idea","💡","Идея"],["check","✅","Сделано"],["heart","❤️","Любимое"],["money","💰","Деньги"],["home","🏠","Дом"],["work","🚚","Работа"],["book","📚","Учёба"],["pin","📍","Место"]];
+const STK = Object.fromEntries(STICKERS.map(([k,e,n])=>[k,{e,n}]));
+let curNote=null, noteTimer=null, noteGroup=null, noteSticker=null, noteQuery="";
+const noteGroups = () => [...new Set(arr("notes").map(n=>(n.group||"").trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"ru"));
+const cleanStickers = v => Array.isArray(v) ? v.filter(k=>STK[k]).slice(0,10) : [];
+function noteData(id){ const n=S.notes[id]||{}; return { title:n.title||"", text:n.text||"", group:(n.group||"").slice(0,30), stickers:cleanStickers(n.stickers), pinned:!!n.pinned, updated:n.updated||Date.now() }; }
+function saveNote(id, patch){ save("notes", id, { ...noteData(id), ...patch, updated: Date.now() }); }
+function newNote(){ const id=uid(); curNote=id; save("notes",id,{title:"",text:"",group: noteGroup || "",stickers: noteSticker ? [noteSticker] : [],pinned:false,updated:Date.now()}); setTimeout(()=>{const e=$("#noteTitle"); e&&e.focus();},0); }
+function noteInput(){ clearTimeout(noteTimer); noteTimer=setTimeout(()=>{ if(!curNote || !S.notes[curNote]) return; saveNote(curNote, {title:$("#noteTitle").value.slice(0,200), text:$("#noteText").value.slice(0,12000)}); drawNoteList(); },700); }
 function pickNote(id){ curNote=id; render(); }
-function drawNoteList(){ const el=$("#noteList"); if(!el) return; el.innerHTML=noteListHtml(); }
+function setNoteGroup(el){ if(!curNote) return; saveNote(curNote, {group: String(el.value||"").trim().slice(0,30)}); }
+function toggleSticker(k){ if(!curNote || !STK[k]) return; const st=noteData(curNote).stickers; saveNote(curNote, {stickers: st.includes(k) ? st.filter(x=>x!==k) : [...st, k]}); }
+function togglePin(){ if(!curNote) return; saveNote(curNote, {pinned: !noteData(curNote).pinned}); }
+function noteFilterGroup(g){ noteGroup = g; render(); }
+function noteFilterSticker(k){ noteSticker = noteSticker===k ? null : k; render(); }
+function noteSearch(el){ noteQuery = String(el.value||"").trim().toLowerCase().slice(0,60); drawNoteList(); }
+function filteredNotes(){
+  return arr("notes").filter(n=>{
+    if (noteGroup===""  && (n.group||"").trim()) return false;
+    if (noteGroup && (n.group||"").trim()!==noteGroup) return false;
+    if (noteSticker && !cleanStickers(n.stickers).includes(noteSticker)) return false;
+    if (noteQuery && !((n.title||"")+" "+(n.text||"")+" "+(n.group||"")).toLowerCase().includes(noteQuery)) return false;
+    return true;
+  }).sort((a,b)=>(!!b.pinned-!!a.pinned)||(b.updated||0)-(a.updated||0));
+}
+function drawNoteList(){ const el=$("#noteItems"); if(!el) return; el.innerHTML=noteListHtml(); }
 function noteListHtml(){
-  const ns=arr("notes").sort((a,b)=>(b.updated||0)-(a.updated||0));
-  return ns.length?ns.map(n=>`<div class="nitem ${n.id===curNote?"on":""}" role="button" tabindex="0" aria-current="${n.id===curNote}" data-click="pickNote" ${A(n.id)}><div>${esc(n.title||"Без названия")}</div><div class="x">${esc((n.text||"").slice(0,80))||"пусто"}</div></div>`).join(""):`<div class="empty">Заметок нет.</div>`;
+  const ns=filteredNotes();
+  return ns.length?ns.map(n=>{ const st=cleanStickers(n.stickers); return `<div class="nitem ${n.id===curNote?"on":""}" role="button" tabindex="0" aria-current="${n.id===curNote}" data-click="pickNote" ${A(n.id)}>
+      <div class="nhead">${n.pinned?`<span class="npin" title="Закреплено">${ICO.pin}</span>`:""}<span class="ntitle">${esc(n.title||"Без названия")}</span>${st.length?`<span class="nstk" aria-label="Стикеры: ${esc(st.map(k=>STK[k].n).join(", "))}">${st.map(k=>STK[k].e).join("")}</span>`:""}</div>
+      <div class="x">${esc((n.text||"").slice(0,80))||"пусто"}</div>
+      ${(n.group||"").trim()?`<div><span class="chip ngroup">${esc(n.group.trim())}</span></div>`:""}</div>`; }).join(""):`<div class="empty">${arr("notes").length?"Ничего не найдено. Сбросьте фильтр или поиск.":"Заметок нет."}</div>`;
 }
 function vNotes(){
-  const ns=arr("notes"); if(!curNote || !S.notes[curNote]) curNote = ns.sort((a,b)=>(b.updated||0)-(a.updated||0))[0]?.id || null;
-  const n=curNote?S.notes[curNote]:null;
-  return `<div class="spread"><div><h1>Заметки</h1><div class="sub">${ns.length} заметок</div></div><button class="btn pri" data-click="newNote">Новая заметка</button></div>
-  <div class="notes"><div class="card" id="noteList">${noteListHtml()}</div>
-   <div class="card">${n?`<input type="text" id="noteTitle" aria-label="Заголовок заметки" value="${esc(n.title)}" placeholder="Заголовок" data-input="noteInput" style="width:100%;font-size:18px;font-weight:600;margin-bottom:10px">
-     <textarea id="noteText" aria-label="Текст заметки" rows="16" placeholder="Текст заметки" data-input="noteInput">${esc(n.text)}</textarea>
+  const all=arr("notes"), list=filteredNotes();
+  if(!curNote || !S.notes[curNote]) curNote = list[0]?.id || null;
+  const n=curNote?noteData(curNote):null, groups=noteGroups(), noGroup=all.filter(x=>!(x.group||"").trim()).length;
+  const usedSt=STICKERS.filter(([k])=>all.some(x=>cleanStickers(x.stickers).includes(k)));
+  return `<div class="spread"><div><h1>Заметки</h1><div class="sub">${all.length} заметок${groups.length?` · ${groups.length} групп${groups.length%10===1&&groups.length!==11?"а":(groups.length%10>=2&&groups.length%10<=4&&(groups.length<12||groups.length>14))?"ы":""}`:""}</div></div><button class="btn pri" data-click="newNote">Новая заметка</button></div>
+  <div class="ngroups" role="tablist" aria-label="Группы заметок">
+    <button class="gchip ${noteGroup===null?"on":""}" data-click="noteFilterGroup" ${A(null)}>Все <span class="num">${all.length}</span></button>
+    ${groups.map(g=>`<button class="gchip ${noteGroup===g?"on":""}" data-click="noteFilterGroup" ${A(g)}>${esc(g)} <span class="num">${all.filter(x=>(x.group||"").trim()===g).length}</span></button>`).join("")}
+    ${groups.length&&noGroup?`<button class="gchip ${noteGroup===""?"on":""}" data-click="noteFilterGroup" ${A("")}>Без группы <span class="num">${noGroup}</span></button>`:""}
+  </div>
+  ${usedSt.length?`<div class="row" style="gap:6px" aria-label="Фильтр по стикерам">${usedSt.map(([k,e,nm])=>`<button class="stk ${noteSticker===k?"on":""}" data-click="noteFilterSticker" ${A(k)} aria-pressed="${noteSticker===k}" title="${esc(nm)}">${e} <span>${esc(nm)}</span></button>`).join("")}</div>`:""}
+  <div class="notes"><div class="card nlist">
+      <input type="text" id="noteSearch" aria-label="Поиск по заметкам" placeholder="Поиск" value="${esc(noteQuery)}" data-input="noteSearch" autocomplete="off" style="width:100%;margin-bottom:10px">
+      <div id="noteItems">${noteListHtml()}</div></div>
+   <div class="card">${n?`<div class="spread" style="margin-bottom:10px;flex-wrap:nowrap"><input type="text" id="noteTitle" aria-label="Заголовок заметки" value="${esc(n.title)}" placeholder="Заголовок" data-input="noteInput" maxlength="200" style="flex:1;font-size:18px;font-weight:600">
+       <button class="btn sm pinbtn ${n.pinned?"on":""}" data-click="togglePin" aria-pressed="${n.pinned}" title="${n.pinned?"Открепить":"Закрепить сверху"}">${ICO.pin}<span>${n.pinned?"Закреплено":"Закрепить"}</span></button></div>
+     <div class="nmeta">
+       <label class="lbl" for="noteGroupIn">Группа</label>
+       <input type="text" id="noteGroupIn" list="noteGroupList" value="${esc(n.group)}" placeholder="например: Дом, Работа, Идеи" maxlength="30" data-change="setNoteGroup" autocomplete="off">
+       <datalist id="noteGroupList">${groups.map(g=>`<option value="${esc(g)}"></option>`).join("")}</datalist>
+     </div>
+     <div class="lbl" style="margin:12px 0 6px">Стикеры</div>
+     <div class="stkrow">${STICKERS.map(([k,e,nm])=>`<button class="stk ${n.stickers.includes(k)?"on":""}" data-click="toggleSticker" ${A(k)} aria-pressed="${n.stickers.includes(k)}" title="${esc(nm)}">${e} <span>${esc(nm)}</span></button>`).join("")}</div>
+     <textarea id="noteText" aria-label="Текст заметки" rows="14" placeholder="Текст заметки" data-input="noteInput" maxlength="12000" style="margin-top:12px">${esc(n.text)}</textarea>
      <div class="spread" style="margin-top:8px"><span class="mute" style="font-size:12px">Сохраняется само</span><button class="btn sm" data-click="delNote" ${A(curNote)}>Удалить</button></div>`
-     :`<div class="empty">Нажмите «Новая заметка», чтобы начать.</div>`}</div></div>`;
+     :`<div class="empty">${all.length?"Выберите заметку слева или создайте новую.":"Нажмите «Новая заметка», чтобы начать."}</div>`}</div></div>`;
 }
 
 /* ---------- BOARD ---------- */
 const KCOLS=[["idea","Идеи"],["doing","В работе"],["done","Готово"]];
 function addCard(f,col){ const t=f.c.value.trim(); if(!t) return need(f.c,"Напишите текст карточки"); save("board",uid(),{title:t,col,updated:Date.now()}); f.c.value=""; return false; }
 function moveCard(id,dir){ const c=S.board[id]; const i=KCOLS.findIndex(k=>k[0]===c.col)+dir; if(i<0||i>2) return; save("board",id,{...c,col:KCOLS[i][0],updated:Date.now()}); }
-function vBoard(){
+function boardHtml(){
   const cs=arr("board").sort((a,b)=>(b.updated||0)-(a.updated||0));
-  return `<div><h1>Доски</h1><div class="sub">Идеи и дела, которые двигаются по этапам</div></div>
+  return `<div class="spread" style="margin-top:6px"><div><h2 style="font-size:20px">Доски</h2><div class="sub">Идеи и дела, которые двигаются по этапам</div></div></div>
   <div class="kan">${KCOLS.map(([k,n],ci)=>{ const items=cs.filter(c=>c.col===k); return `<div class="card"><h2>${n} <span class="mute num">${items.length}</span></h2>
     <div style="display:flex;flex-direction:column;gap:8px">${items.map(c=>`<div class="kcard"><div>${esc(c.title)}</div><div class="spread"><div class="row">${ci>0?`<button class="btn sm" data-click="moveCard" ${A(c.id,-1)} aria-label="Назад">${ICO.left}</button>`:""}${ci<2?`<button class="btn sm" data-click="moveCard" ${A(c.id,1)} aria-label="Вперёд">${ICO.right}</button>`:""}</div><button class="icon" aria-label="Удалить" data-click="del" ${A("board",c.id)}>${ICO.x}</button></div></div>`).join("")}</div>
     <form data-submit="addCard" ${A(k)} class="compose" style="margin-top:10px"><input type="text" id="kAdd${k}" aria-label="Новая карточка в колонку ${n}" name="c" placeholder="Новая карточка" autocomplete="off"><button class="btn sm">+</button></form></div>`;}).join("")}</div>`;
@@ -526,6 +681,7 @@ function vBoard(){
 const A = (...args) => `data-args="${esc(JSON.stringify(args))}"`;
 const ACTIONS = {
   go, del, toggleTask, quickDay, shiftMonth, pickMonth, paySub, toggleHabit, pickNote, newNote, noteInput, moveCard,
+  setPayKindForm, setNoteGroup, noteSearch, toggleSticker, togglePin, noteFilterGroup, noteFilterSticker,
   homeTab: k => { homeTab = k; render(); },
   taskTab: k => { taskTab = k; render(); },
   healthTab: k => { healthTab = k; render(); },
@@ -541,7 +697,7 @@ const ACTIONS = {
   addTask: f => addTask(f), addQuick: f => addQuick(f), addSub: f => addSub(f), addHabit: f => addHabit(f), addCard: (f, k) => addCard(f, k),
   logout: () => signOut()
 };
-const NEEDS_EL = new Set(["setHNum", "quickPreview", "setBudget"]);
+const NEEDS_EL = new Set(["setHNum", "quickPreview", "setBudget", "setPayKindForm", "setNoteGroup", "noteSearch"]);
 function runAction(el, attr, evt){
   const name = el.getAttribute(attr); const fn = Object.prototype.hasOwnProperty.call(ACTIONS, name) ? ACTIONS[name] : null;
   if (!fn) return;
@@ -638,7 +794,7 @@ async function signOut(){
   authMode = "login"; authMsg = "Вы вышли из кабинета."; drawAuth();
 }
 function wipeUi(){
-  COLS.forEach(c => S[c] = {}); curNote = null; moneyPicked = false; moneyMonth = today().slice(0,7);
+  COLS.forEach(c => S[c] = {}); curNote = null; noteGroup = null; noteSticker = null; noteQuery = ""; moneyPicked = false; moneyMonth = today().slice(0,7); moneyTab = "dash";
   $("#view").innerHTML = ""; $("#nav").innerHTML = ""; $("#who").textContent = "";
 }
 function signedOut(msg){ applySession(null); wipeUi(); authMode = "login"; authMsg = msg || ""; drawAuth(); }

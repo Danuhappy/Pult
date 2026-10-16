@@ -223,3 +223,28 @@ input[type=email],input[type=password]{background:var(--panel2);border:1px solid
 .navout{display:none}
 @media (max-width:900px){.navout{display:flex}}
 @media (max-width:900px){.rail .foot{display:flex;flex:none;margin:0;padding:0 0 0 10px}.rail .foot::before,.rail .foot #who{display:none}}
+
+/* заметки v2 */
+.ngroups{display:flex;gap:6px;flex-wrap:wrap}
+.gchip{border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:999px;padding:7px 13px;cursor:pointer;font:inherit;font-size:14px}
+.gchip .num{color:var(--mute);font-size:12px;margin-left:4px}
+.gchip.on{background:var(--lime);border-color:var(--lime);color:var(--ink)}
+.gchip.on .num{color:rgba(13,3,3,.7)}
+.stk{border:1px solid var(--line);background:var(--panel2);color:var(--fg);border-radius:999px;padding:5px 10px;cursor:pointer;font:inherit;font-size:13px;display:inline-flex;gap:5px;align-items:center}
+.stk.on{background:rgba(255,0,85,.18);border-color:var(--pink)}
+.stkrow{display:flex;gap:6px;flex-wrap:wrap}
+.nhead{display:flex;align-items:center;gap:6px;min-width:0}
+.ntitle{flex:1;min-width:0;overflow-wrap:anywhere}
+.nstk{flex:none;letter-spacing:1px}
+.npin{color:var(--lime);flex:none}
+.npin .ico{width:14px;height:14px}
+.ngroup{margin-top:6px;font-size:11px;padding:2px 8px}
+.nmeta{display:flex;flex-direction:column;gap:6px}
+.nmeta input{width:100%}
+.pinbtn{display:inline-flex;gap:6px;align-items:center;flex:none}
+.pinbtn.on{background:var(--lime);border-color:var(--lime);color:var(--ink)}
+.nlist{display:flex;flex-direction:column;min-width:0}
+@media (max-width:480px){.pinbtn span{display:none}}
+/* обязательные платежи */
+.paybar{height:6px;border-radius:3px;background:var(--track);overflow:hidden;margin:6px 0 2px;max-width:260px}
+.paybar b{display:block;height:100%;background:var(--lime);border-radius:3px}
