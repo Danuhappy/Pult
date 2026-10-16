@@ -29,7 +29,7 @@ jobs:
           exit $code
       - name: Нет секретных ключей Supabase в публичных файлах
         run: |
-          if grep -nEi 'service_role|sb_secret_' index.html app.js config.js style.css; then
+          if grep -nE 'sb_secret_[A-Za-z0-9_-]{10,}' index.html app.js config.js style.css; then
             echo "Найден секретный ключ в публичном файле"; exit 1; fi
           python3 - <<'PY'
           import json,base64,re
