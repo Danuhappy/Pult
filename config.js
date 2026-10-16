@@ -3,6 +3,6 @@
 // Они видны всем по замыслу — данные защищены правилами базы (RLS), см. supabase/schema.sql.
 // НИКОГДА не вставляйте сюда service_role / secret ключ.
 window.PULT_CONFIG = Object.freeze({
-  url: "",   // например "https://abcd1234.supabase.co"
-  key: ""    // publishable / anon key
+  url: "https://xhvamuaxrhshfouztqfn.supabase.co",
+  key: "sb_publishable_jAnN8GpKJR4Fso2jz8l5Jw_nTv9tAvZ"
 });
