@@ -1,31 +1,33 @@
-name: Публикация на GitHub Pages
+name: Публикация сайта
+# Сайт обновляется ТОЛЬКО после успешной «Проверки безопасности» на ветке main.
 on:
-  push:
+  workflow_run:
+    workflows: ["Проверка безопасности"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v5
-      - name: Собрать только публичные файлы
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Собрать только публичные файлы и выложить в ветку gh-pages
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir _site
           cp index.html app.js style.css config.js icon.svg _site/
           touch _site/.nojekyll
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          cd _site
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" commit -q -m "Публикация ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages

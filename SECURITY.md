@@ -62,7 +62,7 @@ A03 инъекции/XSS, A05 настройки, A07 аутентификаци
 ## Обязательные настройки в панели Supabase
 
 1. **Authentication → Sign In / Providers → Email**: «Confirm email» включено.
-2. **Authentication → URL Configuration**: Site URL и Redirect URLs = `https://danuhappy.github.io/pult/`
+2. **Authentication → URL Configuration**: Site URL и Redirect URLs = `https://danuhappy.github.io/Pult/`
    (только этот адрес — иначе ссылки из писем можно увести на чужой сайт).
 3. **Authentication → Policies / Passwords**: минимальная длина пароля 8+.
 4. **Advisors → Security Advisor**: не должно быть предупреждений по `public.items`.
