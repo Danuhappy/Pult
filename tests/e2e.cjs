@@ -3,7 +3,7 @@
 const { chromium } = require(process.env.PW);
 const crypto = require('crypto');
 const BASE = 'http://127.0.0.1:8099/';
-const SB = 'https://testproj.supabase.co';
+const SB = 'https://xhvamuaxrhshfouztqfn.supabase.co'; // запросы перехватываются моком, в сеть не уходят
 const users = {}, tokens = {}, rows = [];
 const results = []; const check = (name, ok) => { results.push([ok ? 'OK  ' : 'FAIL', name]); };
 function json(route, status, body){ return route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) }); }
@@ -84,7 +84,13 @@ process.on("unhandledRejection", async e => { console.log("ERR", e.message.split
   check('Задача отмечается выполненной', rows.find(r => r.col === 'tasks').data.done === true);
   await page.click('[data-v="habits"]'); await page.fill('#hName', 'Зарядка'); await page.click('form .btn.pri'); await page.waitForTimeout(150);
   await page.click('.hab-check'); await page.waitForTimeout(150);
-  check('Привычка добавляется и отмечается', n('habits') === 1 && Object.keys(rows.find(r => r.col === 'habits').data.log).length === 1);
+  const hl = rows.find(r => r.col === 'habits').data.log, td = await page.evaluate(() => today());
+  check('Привычка отмечается именно на сегодня', n('habits') === 1 && hl[td] === true && Object.keys(hl).length === 1);
+  check('Квадрат привычки стал отмеченным', await page.$eval('.hab-check', e => e.classList.contains('on')));
+  await page.click('.hab-check'); await page.waitForTimeout(150);
+  check('Повторное нажатие снимает отметку', !rows.find(r => r.col === 'habits').data.log[td]);
+  await page.click('[data-v="home"]'); await page.click('.hpill'); await page.waitForTimeout(150);
+  check('Отметка с «Обзора» тоже ставится на сегодня', rows.find(r => r.col === 'habits').data.log[td] === true);
   await page.click('[data-v="health"]'); await page.click('[data-click="water"] >> nth=1'); await page.click('[data-click="mood"] >> nth=3');
   await page.fill('#hSleep', '7,5'); await page.press('#hSleep', 'Tab'); await page.waitForTimeout(200);
   const h = rows.find(r => r.col === 'health'); check('Здоровье: вода, настроение, сон сохраняются', h && h.data.water === 1 && h.data.mood === 4 && h.data.sleep === 7.5);

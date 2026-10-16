@@ -448,7 +448,8 @@ function habitStreak(x){
   return n;
 }
 function habitRate(x,days=30){ let due=0,done=0; for(let i=0;i<days;i++){ const d=addDays(today(),-i); if(x.start && d<x.start) break; if(habitDue(x,d)){ due++; if((x.log||{})[d]) done++; } } return due?Math.round(done/due*100):0; }
-function toggleHabit(id,d){ const x=S.habits[id]; if(!x) return; d=d||today(); const log={...(x.log||{})}; if(log[d]) delete log[d]; else log[d]=true; save("habits",id,{...x,log}); }
+const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
+function toggleHabit(id,d){ const x=S.habits[id]; if(!x) return; d=(typeof d==="string"&&DATE_RE.test(d))?d:today(); const log={}; Object.keys(x.log||{}).forEach(k=>{ if(DATE_RE.test(k)) log[k]=true; }); if(log[d]) delete log[d]; else log[d]=true; save("habits",id,{...x,log}); }
 function daysText(days){ if(!days||!days.length||days.length===7) return "каждый день"; const k=[...days].sort((a,b)=>DAYS_ORDER.indexOf(a)-DAYS_ORDER.indexOf(b)); if(k.join()==="1,2,3,4,5") return "по будням"; if(k.join()==="6,0") return "по выходным"; return k.map(i=>WD[i]).join(", "); }
 function addHabit(f){
   const name=f.hn.value.trim(); if(!name) return need(f.hn,"Напишите название привычки");
@@ -540,12 +541,14 @@ const ACTIONS = {
   addTask: f => addTask(f), addQuick: f => addQuick(f), addSub: f => addSub(f), addHabit: f => addHabit(f), addCard: (f, k) => addCard(f, k),
   logout: () => signOut()
 };
+const NEEDS_EL = new Set(["setHNum", "quickPreview", "setBudget"]);
 function runAction(el, attr, evt){
   const name = el.getAttribute(attr); const fn = Object.prototype.hasOwnProperty.call(ACTIONS, name) ? ACTIONS[name] : null;
   if (!fn) return;
   let args = []; try { args = el.dataset.args ? JSON.parse(el.dataset.args) : []; } catch(_) { return; }
   if (!Array.isArray(args)) return;
-  return attr === "data-submit" ? fn(el, ...args) : fn(...args, el, evt);
+  if (attr === "data-submit") return fn(el, ...args);
+  return NEEDS_EL.has(name) ? fn(...args, el) : fn(...args);
 }
 document.addEventListener("click", e => { const el = e.target.closest("[data-click]"); if (el && !el.disabled) runAction(el, "data-click", e); });
 document.addEventListener("change", e => { const el = e.target.closest("[data-change]"); if (el) runAction(el, "data-change", e); });
