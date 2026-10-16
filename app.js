@@ -144,9 +144,12 @@ function navCount(k){
   return n ? `<span class="cnt">${n}</span>` : "";
 }
 function drawNav(){
-  $("#nav").innerHTML = VIEWS.map(([k,t,i])=>`<button data-v="${k}" class="${k===view?"on":""}" ${k===view?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${IC[i]}</svg><span class="nl">${t}</span>${navCount(k)}</button>`).join("");
+  const nav = $("#nav"), byK = Object.fromEntries(VIEWS.map(v => [v[0], v])), hid = navHidden();
+  const keys = navOrder().filter(k => !hid.includes(k));
+  nav.classList.toggle("editing", editMode); nav.style.setProperty("--n", keys.length);
+  nav.innerHTML = keys.map((k, n) => { const [, t, i] = byK[k]; return `<button data-v="${k}" class="${k===view?"on":""}" ${k===view?'aria-current="page"':""} style="--d:${(n % 3) * -0.07}s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${IC[i]}</svg><span class="nl">${t}</span>${editMode?`<span class="jx" role="button" tabindex="0" data-click="navHide" ${A(k)} aria-label="Скрыть вкладку «${t}»">−</span>`:navCount(k)}</button>`; }).join("");
 }
-$("#nav").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; go(b.dataset.v); });
+$("#nav").addEventListener("click", e=>{ if (e.target.closest("[data-click]")) return; const b=e.target.closest("button"); if(!b) return; go(b.dataset.v); });
 function go(v){ view=v; try{history.replaceState(null,"","#"+v);}catch(_){} drawNav(); render(); window.scrollTo(0,0); }
 
 /* ---------- render with focus preservation ---------- */
@@ -155,7 +158,8 @@ function render(){
   const a = document.activeElement, keep = a && a.id && /INPUT|TEXTAREA|SELECT/.test(a.tagName) ? {id:a.id,val:a.value,s:a.selectionStart,e:a.selectionEnd} : null;
   if (view==="notes" && keep && keep.id.startsWith("note")) { drawNoteList(); return; }
   const fn = {home:vHome,habits:vHabits,tasks:vTasks,cal:vCal,health:vHealth,money:vMoney,notes:vNotes}[view];
-  $("#view").innerHTML = (bannerHtml()) + fn();
+  $("#view").innerHTML = (bannerHtml()) + (editMode && view !== "home" && view !== "money" ? editPanel(null) : "") + fn();
+  const eb = document.querySelector(".editbtn"); if (eb) { eb.textContent = editMode ? "Готово" : "Настроить"; eb.setAttribute("aria-pressed", String(editMode)); }
   if (keep){ const el=document.getElementById(keep.id); if(el){ el.value=keep.val; el.focus(); try{el.setSelectionRange(keep.s,keep.e);}catch(_){} } }
 }
 function bannerHtml(){
@@ -240,37 +244,33 @@ function vHome(){
   const exWeek=arr("money").filter(m=>m.type==="exp" && m.date>=addDays(t,-6) && m.date<=t).reduce((s,m)=>s+m.amount,0);
   const avgScore=Math.round(scores.slice(-7).reduce((a,b)=>a+b,0)/7);
   const tabList = homeTab==="today" ? [...overdue,...tt] : homeTab==="week" ? week : null;
-  return `
-  <div class="spread"><div><h1>${greet()}${firstName()?", "+esc(firstName()):""}!</h1><div class="sub">Посмотрим, как прошёл день.</div></div><span class="chip">${dLabel(t)}</span></div>
-  <div>
-    <div class="lbl" style="margin-bottom:8px">Счёт дня</div>
+  const parts = {
+    score: `<div><div class="lbl" style="margin-bottom:8px">Счёт дня</div>
     <div class="scorehead"><div class="score-n num">${sc.total}</div><div class="score-meta"><b>${dayWord(sc.total)}</b>из 100 возможных</div>
-      <div class="segs">${sc.parts.map((p,i)=>`<div class="seg"><i><b style="width:${Math.round(p[1]*100)}%;background:${SEG_COLORS[i]}"></b></i>${p[0]}</div>`).join("")}</div></div>
-  </div>
-  <div class="tabs">${[["today","Сегодня",overdue.length+tt.length],["week","Неделя",week.length],["sum","Итоги",""]].map(([k,n,c])=>`<button class="${k===homeTab?"on":""}" data-click="homeTab" ${A(k)}>${n}<span class="num">${c}</span></button>`).join("")}</div>
-  <div class="hero">
+      <div class="segs">${sc.parts.map((p,i)=>`<div class="seg"><i><b style="width:${Math.round(p[1]*100)}%;background:${SEG_COLORS[i]}"></b></i>${p[0]}</div>`).join("")}</div></div></div>`,
+    tiles: `<div class="hero">
     <div class="tile a"><span class="corner">${ICO.check}</span><div><div class="lbl">Задачи сегодня</div><div class="big">${tasksOnly.filter(x=>x.done).length} из ${tasksOnly.length}</div></div><div class="mute">${overdue.length?overdue.length+" просрочено":"без просрочек"}</div></div>
     <div class="tile b"><span class="corner">${ICO.ruble}</span><div><div class="lbl">Расходы сегодня</div><div class="big">${rub(expT)}</div></div><div class="mute">за месяц ${rub(expM)}</div></div>
     <div class="tile ice"><span class="corner">${ICO.moon}</span><div><div class="lbl">Сон</div><div class="big">${h.sleep?esc(String(h.sleep).replace(".",","))+" ч":"—"}</div></div><div class="mute">${h.sleep?(h.sleep>=7?"выспался":"маловато"):"не внесён"}</div></div>
     <div class="tile"><span class="corner">${ICO.steps}</span><div><div class="lbl">Шаги</div><div class="big">${h.steps?fmt(h.steps):"—"}</div></div><div class="mute">вода ${esc(h.water||0)} из 8</div></div>
-  </div>
-  ${habitStrip()}
-  <div class="grid g2">
-    <div class="card">${tabList ? `<h2>${homeTab==="today"?"На сегодня":"Ближайшие 7 дней"} <button class="btn sm" data-click="go" ${A("tasks")}>Все задачи</button></h2>
+  </div>`,
+    habits: habitStrip(),
+    tasks: `<div class="card"><div class="tabs" style="margin:-6px 0 14px">${[["today","Сегодня",overdue.length+tt.length],["week","Неделя",week.length],["sum","Итоги",""]].map(([k,n,c])=>`<button class="${k===homeTab?"on":""}" data-click="homeTab" ${A(k)}>${n}<span class="num">${c}</span></button>`).join("")}</div>
+      ${tabList ? `<h2>${homeTab==="today"?"На сегодня":"Ближайшие 7 дней"} <button class="btn sm" data-click="go" ${A("tasks")}>Все задачи</button></h2>
       <div class="list">${tabList.length?tabList.map(taskRow).join(""):`<div class="empty">${homeTab==="today"?"На сегодня пусто. Добавьте задачу в разделе «Задачи».":"На неделю ничего не запланировано."}</div>`}</div>`
       : `<h2>Итоги недели</h2><div class="grid g2">
         <div><div class="lbl">Средний счёт</div><div class="big">${avgScore}</div></div>
         <div><div class="lbl">Сделано задач</div><div class="big">${doneWeek}</div></div>
         <div><div class="lbl">Потрачено</div><div class="big">${rub(exWeek)}</div></div>
-        <div><div class="lbl">Заметок</div><div class="big">${Object.keys(S.notes).length}</div></div></div>`}
-    </div>
-    <div class="card"><h2>Продуктивность <span class="lbl">счёт дня за 2 недели</span></h2>
-      ${lineChart(scores, days.map(d=>String(parseD(d).getDate())), 100)}
-      <div class="spread" style="margin-top:16px"><div class="lbl">Ближайшие обязательные платежи</div><button class="btn sm" data-click="openPayments">Все платежи</button></div>
-      <div class="list">${subsSoon.length?subsSoon.map(s=>`<div class="item"><span class="dot" style="background:var(--pink)"></span><span class="t">${esc(s.name)}</span><span class="mute" style="${s.next<t?"color:var(--bad)":""}">${s.next<t?"просрочен":dLabel(s.next)}</span><span class="num">${rub(s.price)}</span></div>`).join(""):`<div class="empty">${arr("subs").length?"В ближайший месяц платежей нет.":"Добавьте подписки, кредиты и коммуналку в «Финансы» → «Обязательные платежи»."}</div>`}</div>
-    </div>
-  </div>
-  ${boardHtml()}`;
+        <div><div class="lbl">Заметок</div><div class="big">${Object.keys(S.notes).length}</div></div></div>`}</div>`,
+    prod: `<div class="card"><h2>Продуктивность <span class="lbl">счёт дня за 2 недели</span></h2>${lineChart(scores, days.map(d=>String(parseD(d).getDate())), 100)}</div>`,
+    pay: `<div class="card"><h2>Ближайшие обязательные платежи <button class="btn sm" data-click="openPayments">Все платежи</button></h2>
+      <div class="list">${subsSoon.length?subsSoon.map(s=>`<div class="item"><span class="dot" style="background:var(--pink)"></span><span class="t">${esc(s.name)}</span><span class="mute" style="${s.next<t?"color:var(--bad)":""}">${s.next<t?"просрочен":dLabel(s.next)}</span><span class="num">${rub(s.price)}</span></div>`).join(""):`<div class="empty">${arr("subs").length?"В ближайший месяц платежей нет.":"Добавьте подписки, кредиты и коммуналку в «Финансы» → «Обязательные платежи»."}</div>`}</div></div>`,
+    boards: `<div>${boardHtml()}</div>`
+  };
+  return `${editPanel("home")}
+  <div class="spread"><div><h1>${greet()}${firstName()?", "+esc(firstName()):""}!</h1><div class="sub">Посмотрим, как прошёл день.</div></div><span class="chip">${dLabel(t)}</span></div>
+  ${blocksHtml("home", parts)}`;
 }
 
 /* ---------- TASKS ---------- */
@@ -464,7 +464,7 @@ function moneyDash(ops, exp, inc, st, subs){
   const [y,m]=moneyMonth.split("-").map(Number), dim=new Date(y,m,0).getDate(), t=today(), isCur=t.slice(0,7)===moneyMonth;
   const daysPassed = isCur ? Number(t.slice(8,10)) : (moneyMonth < t.slice(0,7) ? dim : 0);
   const exps=ops.filter(x=>x.type==="exp");
-  if (!exps.length) return `<div class="card"><div class="empty" style="padding:0">В этом месяце расходов нет — графики появятся, когда вы запишете первые траты или загрузите выписку.</div></div>`;
+  if (!exps.length) return { kpi: `<div class="card"><div class="empty" style="padding:0">В этом месяце расходов нет — графики появятся, когда вы запишете первые траты или загрузите выписку.</div></div>` };
   const perDay=Array(dim).fill(0); exps.forEach(x=>{ const d=Number(x.date.slice(8,10)); if(d>=1&&d<=dim) perDay[d-1]+=x.amount; });
   const cum=[]; perDay.reduce((a,v,i)=>(cum[i]=a+v), 0);
   const avg = daysPassed ? exp/daysPassed : 0, forecast = isCur ? avg*dim : exp;
@@ -482,26 +482,21 @@ function moneyDash(ops, exp, inc, st, subs){
   const top=[...exps].sort((a,b)=>b.amount-a.amount).slice(0,5);
   const chip=(p,inverse)=> p===null?`<span class="chip">новое</span>`:`<span class="chip ${(p>0)!==!!inverse?"bad":"good"}">${p>0?"▲":p<0?"▼":"•"} ${Math.abs(p)}%</span>`;
   const budgetLeftPerDay = st.budget && isCur ? Math.max(0, st.budget-exp)/Math.max(1, dim-daysPassed+1) : null;
-  return `
-  <div class="grid g4">
+  return {
+    kpi: `<div class="grid g4">
     <div class="card"><div class="lbl">В среднем в день</div><div class="big">${rub(avg)}</div><div class="mute" style="font-size:13px">за ${daysPassed} ${daysPassed%10===1&&daysPassed!==11?"день":(daysPassed%10>=2&&daysPassed%10<=4&&(daysPassed<12||daysPassed>14))?"дня":"дней"}</div></div>
     <div class="card"><div class="lbl">${isCur?"Прогноз на месяц":"Итого за месяц"}</div><div class="big">${rub(forecast)}</div><div class="mute" style="font-size:13px">${st.budget?(forecast>st.budget?`<span style="color:var(--bad)">выше бюджета на ${rub(forecast-st.budget)}</span>`:`в рамках бюджета`):"бюджет не задан"}</div></div>
     <div class="card"><div class="lbl">К прошлому месяцу</div><div class="big">${dPrev===null?"—":(dPrev>0?"+":"")+dPrev+"%"}</div><div class="mute" style="font-size:13px">${prev.exp?`было ${rub(prev.exp)}`:"нет данных за прошлый месяц"}</div></div>
     <div class="card"><div class="lbl">Обязательные платежи</div><div class="big">${rub(oblig)}</div><div class="mute" style="font-size:13px">${obligShare===null?"в месяц":`${obligShare}% от доходов`}</div></div>
-  </div>
-  ${budgetLeftPerDay!==null?`<div class="banner" style="background:rgba(187,239,31,.08);border-color:rgba(187,239,31,.3)">Чтобы уложиться в бюджет, тратьте не больше <b class="num">${rub(budgetLeftPerDay)}</b> в день до конца месяца.</div>`:""}
-  <div class="grid g2">
-    <div class="card"><h2>Расходы нарастающим итогом <span class="lbl">${st.budget?"пунктир — бюджет":"задайте бюджет, чтобы видеть линию"}</span></h2>${paceChart(cum, st.budget||0, perDay.map((_,i)=>String(i+1)), isCur?daysPassed-1:dim-1)}</div>
-    <div class="card"><h2>Расходы по дням <span class="lbl">самый дорогой: ${perDay.indexOf(Math.max(...perDay))+1} ${MONTHS_G[m-1]}</span></h2>${barChart(perDay.slice(0, isCur?daysPassed:dim), perDay.slice(0, isCur?daysPassed:dim).map((_,i)=>String(i+1)), "var(--lime)")}</div>
-  </div>
-  <div class="grid g2">
-    <div class="card"><h2>Доходы и расходы за 6 месяцев <span class="lbl"><span class="dot" style="background:var(--lime)"></span> доходы · <span class="dot" style="background:var(--pink)"></span> расходы</span></h2>${pairBars(months.map(k=>MONTHS[Number(k.slice(5,7))-1].slice(0,3)), tot.map(x=>x.inc), tot.map(x=>x.exp))}</div>
-    <div class="card"><h2>По дням недели <span class="lbl">в среднем за день</span></h2>${barChart(wdAvg, ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], "var(--ice)")}</div>
-  </div>
-  <div class="grid g2">
-    <div class="card"><h2>Категории к прошлому месяцу</h2><div class="list">${catRows.map(([c,v,p])=>`<div class="item"><span class="t">${esc(c)}</span><span class="num">${rub(v)}</span>${chip(p)}</div>`).join("")}</div></div>
-    <div class="card"><h2>Самые крупные траты</h2><div class="list">${top.map(x=>`<div class="item"><span class="mute num" style="width:60px;white-space:nowrap;flex-shrink:0">${parseD(x.date).getDate()} ${MONTHS_G[parseD(x.date).getMonth()].slice(0,3)}</span><span class="t">${esc(x.note||x.cat)} <span class="chip">${esc(x.cat)}</span></span><span class="num">${rub(x.amount)}</span></div>`).join("")}</div></div>
-  </div>`;
+  </div>`,
+    advice: budgetLeftPerDay!==null?`<div class="banner" style="background:rgba(187,239,31,.08);border-color:rgba(187,239,31,.3)">Чтобы уложиться в бюджет, тратьте не больше <b class="num">${rub(budgetLeftPerDay)}</b> в день до конца месяца.</div>`:"",
+    pace: `<div class="card"><h2>Расходы нарастающим итогом <span class="lbl">${st.budget?"пунктир — бюджет":"задайте бюджет, чтобы видеть линию"}</span></h2>${paceChart(cum, st.budget||0, perDay.map((_,i)=>String(i+1)), isCur?daysPassed-1:dim-1)}</div>`,
+    daily: `<div class="card"><h2>Расходы по дням <span class="lbl">самый дорогой: ${perDay.indexOf(Math.max(...perDay))+1} ${MONTHS_G[m-1]}</span></h2>${barChart(perDay.slice(0, isCur?daysPassed:dim), perDay.slice(0, isCur?daysPassed:dim).map((_,i)=>String(i+1)), "var(--lime)")}</div>`,
+    months: `<div class="card"><h2>Доходы и расходы за 6 месяцев <span class="lbl"><span class="dot" style="background:var(--lime)"></span> доходы · <span class="dot" style="background:var(--pink)"></span> расходы</span></h2>${pairBars(months.map(k=>MONTHS[Number(k.slice(5,7))-1].slice(0,3)), tot.map(x=>x.inc), tot.map(x=>x.exp))}</div>`,
+    weekday: `<div class="card"><h2>По дням недели <span class="lbl">в среднем за день</span></h2>${barChart(wdAvg, ["Пн","Вт","Ср","Чт","Пт","Сб","Вс"], "var(--ice)")}</div>`,
+    cats: `<div class="card"><h2>Категории к прошлому месяцу</h2><div class="list">${catRows.map(([c,v,p])=>`<div class="item"><span class="t">${esc(c)}</span><span class="num">${rub(v)}</span>${chip(p)}</div>`).join("")}</div></div>`,
+    top: `<div class="card"><h2>Самые крупные траты</h2><div class="list">${top.map(x=>`<div class="item"><span class="mute num" style="width:60px;white-space:nowrap;flex-shrink:0">${parseD(x.date).getDate()} ${MONTHS_G[parseD(x.date).getMonth()].slice(0,3)}</span><span class="t">${esc(x.note||x.cat)} <span class="chip">${esc(x.cat)}</span></span><span class="num">${rub(x.amount)}</span></div>`).join("")}</div></div>`
+  };
 }
 
 function paymentsHtml(subs){
@@ -545,7 +540,7 @@ function vMoney(){
     <div class="tile"><div class="lbl">Бюджет на месяц</div><input type="number" id="budget" aria-label="Бюджет на месяц, рублей" value="${esc(st.budget||"")}" placeholder="не задан" data-change="setBudget" style="width:100%;font-size:18px"><div class="${left!==null&&left<0?"":"mute"}" style="${left!==null&&left<0?"color:var(--bad)":""}">${left===null?"задайте лимит":left>=0?"осталось "+rub(left):"перерасход "+rub(-left)}</div></div>
     <button type="button" class="tile tlink" data-click="moneyTab" ${A("subs")} aria-label="Открыть обязательные платежи"><div class="lbl">Обязательные в месяц</div><div class="big">${rub(subMonth)}</div><div class="mute">${subs.length} платеж${subs.length%10===1&&subs.length%100!==11?"":(subs.length%10>=2&&subs.length%10<=4&&(subs.length%100<12||subs.length%100>14))?"а":"ей"} ›</div></button>
   </div>`;
-  return `<div class="spread"><div><h1>Финансы</h1><div class="sub">${MONTHS[m-1]} ${y}</div></div>
+  return `${moneyTab==="dash"?editPanel("money"):editPanel(null)}<div class="spread"><div><h1>Финансы</h1><div class="sub">${MONTHS[m-1]} ${y}</div></div>
     <div class="row"><button class="btn sm" data-click="shiftMonth" ${A(-1)} aria-label="Предыдущий месяц">${ICO.left}</button><button class="btn sm" data-click="shiftMonth" ${A(1)} aria-label="Следующий месяц">${ICO.right}</button></div></div>
   ${(()=>{ const ms=monthsWithMoney(); if(!ms.length) return ""; return `<div class="tabs" role="tablist" aria-label="Месяцы с операциями">${ms.map(([k,n])=>{ const [yy,mm]=k.split("-").map(Number); return `<button class="${k===moneyMonth?"on":""}" data-click="pickMonth" ${A(k)}>${MONTHS[mm-1]}${yy!==new Date().getFullYear()?" "+yy:""}<span class="num">${n}</span></button>`; }).join("")}</div>`; })()}
   <div class="tabs mtabs" role="tablist" aria-label="Разделы финансов">${[["dash","Аналитика","Аналитика"],["ops","Операции","Операции"],["cats","По категориям","Категории"],["subs","Обязательные платежи","Платежи"]].map(([k,n,sh])=>`<button class="${k===moneyTab?"on":""}" role="tab" aria-selected="${k===moneyTab}" data-click="moneyTab" ${A(k)}><span class="tl-full">${n}</span><span class="tl-short" aria-hidden="true">${sh}</span></button>`).join("")}</div>
@@ -557,7 +552,7 @@ function vMoney(){
     </form>`}
   <input type="file" id="stmtIn" class="vh" accept=".pdf,.csv,.xlsx,.xls,.txt,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" data-change="stmtPick" aria-label="Файл выписки из банка">
   ${impHtml()}
-  ${moneyTab==="dash"?`${heroHtml}${moneyDash(ops, exp, inc, st, subs)}`:""}
+  ${moneyTab==="dash"?blocksHtml("money", Object.assign({ tiles: heroHtml }, moneyDash(ops, exp, inc, st, subs))):""}
   ${moneyTab==="cats"?`<div class="card"><div class="row" style="gap:26px;align-items:center">${cats.length?donut(cats.map(([c,v],i)=>[c,v,CAT_COLOR[i%CAT_COLOR.length]]),compact(exp)):""}<div class="bars" style="flex:1;min-width:240px">${cats.length?cats.map(([c,v],i)=>`<div class="bar"><span>${esc(c)}</span><i><b style="width:${v/cmax*100}%;background:${CAT_COLOR[i%CAT_COLOR.length]}"></b></i><span class="num" style="text-align:right">${rub(v)}</span></div>`).join(""):`<div class="empty">В этом месяце расходов нет.</div>`}</div></div></div>`:""}
   ${moneyTab==="ops"&&!imp?dropHtml():""}
   ${moneyTab==="ops"?`<div class="card"><div class="list">${ops.length?ops.map(x=>`<div class="item"><span class="mute num" style="width:52px">${parseD(x.date).getDate()} ${MONTHS_G[parseD(x.date).getMonth()].slice(0,3)}</span><span class="t">${esc(x.note||x.cat)} <span class="chip">${esc(x.cat)}</span></span><span class="num" style="color:${x.type==="inc"?"var(--good)":"var(--fg)"}">${x.type==="inc"?"+":"−"}${rub(x.amount)}</span><button class="icon" aria-label="Удалить" data-click="del" ${A("money",x.id)}>${ICO.x}</button></div>`).join(""):`<div class="empty">Операций нет. Запишите первую строкой выше, например «5600 дизель».</div>`}</div></div>`:""}
@@ -812,12 +807,158 @@ function boardHtml(){
     <form data-submit="addCard" ${A(k)} class="compose" style="margin-top:10px"><input type="text" id="kAdd${k}" aria-label="Новая карточка в колонку ${n}" name="c" placeholder="Новая карточка" autocomplete="off"><button class="btn sm">+</button></form></div>`;}).join("")}</div>`;
 }
 
+/* ---------- настройка экрана: перетаскивание блоков и вкладок, как на главном экране iPhone ---------- */
+// Порядок, скрытые блоки и ширина хранятся в кабинете (meta/layout), поэтому одинаковы на телефоне и компьютере.
+let editMode = false, resetArmed = false;
+const PAGE_BLOCKS = {
+  home: [["score","Счёт дня",2],["tiles","Плитки дня",2],["habits","Привычки сегодня",2],["tasks","Задачи",1],["prod","Продуктивность",1],["pay","Ближайшие платежи",1],["boards","Доски",2]],
+  money: [["tiles","Баланс и бюджет",2],["kpi","Ключевые цифры",2],["advice","Совет по бюджету",2],["pace","Расходы нарастающим итогом",1],["daily","Расходы по дням",1],
+          ["months","Доходы и расходы за 6 месяцев",1],["weekday","По дням недели",1],["cats","Категории к прошлому месяцу",1],["top","Самые крупные траты",1]]
+};
+const PAGE_NAME = { home: "Обзор", money: "Финансы → Аналитика" };
+const strList = (v, allowed) => Array.isArray(v) ? [...new Set(v.filter(x => typeof x === "string" && allowed.includes(x)))] : [];
+function layoutData(){ const L = S.meta.layout; return L && typeof L === "object" ? L : {}; }
+function navOrder(){ const keys = VIEWS.map(v => v[0]), o = strList(layoutData().nav, keys); keys.forEach(k => { if (!o.includes(k)) o.push(k); }); return o; }
+function navHidden(){ const keys = VIEWS.map(v => v[0]), h = strList(layoutData().navHidden, keys); return h.length >= keys.length ? [] : h; }
+function pageCfg(p){
+  const ids = PAGE_BLOCKS[p].map(b => b[0]), c = (layoutData().pages || {})[p] || {};
+  const order = strList(c.order, ids); ids.forEach(id => { if (!order.includes(id)) order.push(id); });
+  const w = {}; if (c.w && typeof c.w === "object") ids.forEach(id => { if (c.w[id] === 1 || c.w[id] === 2) w[id] = c.w[id]; });
+  return { order, hidden: strList(c.hidden, ids), w };
+}
+function saveLayout(L){ save("meta", "layout", L); }
+function savePage(p, cfg){ const L = layoutData(); saveLayout({ ...L, pages: { ...(L.pages || {}), [p]: cfg } }); }
+function blockWidth(p, id){ const c = pageCfg(p), d = PAGE_BLOCKS[p].find(b => b[0] === id); return c.w[id] || (d ? d[2] : 2); }
+
+function blocksHtml(p, parts){
+  const c = pageCfg(p), name = Object.fromEntries(PAGE_BLOCKS[p].map(b => [b[0], b[1]]));
+  const list = c.order.filter(id => !c.hidden.includes(id) && (editMode || parts[id]));
+  return `<div class="blkgrid ${editMode ? "editing" : ""}" data-page="${p}">${list.map((id, i) => {
+    const w = blockWidth(p, id);
+    return `<section class="blk w${w}" data-blk="${id}" style="--d:${(i % 4) * -0.09}s">${editMode ? `<button type="button" class="jx" data-click="blkHide" ${A(p, id)} aria-label="Скрыть блок «${esc(name[id])}»">−</button>
+      <div class="blkbar"><span class="blkname">${esc(name[id])}</span><span class="blkctl">
+        <button type="button" class="icon" data-click="blkMove" ${A(p, id, -1)} aria-label="Поднять блок «${esc(name[id])}»" ${i === 0 ? "disabled" : ""}>↑</button>
+        <button type="button" class="icon" data-click="blkMove" ${A(p, id, 1)} aria-label="Опустить блок «${esc(name[id])}»" ${i === list.length - 1 ? "disabled" : ""}>↓</button>
+        <button type="button" class="btn sm wbtn" data-click="blkWidth" ${A(p, id)} title="Переключить ширину: вся строка или половина">${w === 2 ? "Ширина: вся" : "Ширина: ½"}</button></span></div>` : ""}
+      <div class="blkbody">${parts[id] || `<div class="card"><div class="empty" style="padding:0">Здесь появятся данные: «${esc(name[id])}».</div></div>`}</div></section>`;
+  }).join("")}</div>`;
+}
+function editPanel(p){
+  if (!editMode) return "";
+  const hidNav = navHidden(), vname = Object.fromEntries(VIEWS.map(v => [v[0], v[1]]));
+  const c = p ? pageCfg(p) : null, name = p ? Object.fromEntries(PAGE_BLOCKS[p].map(b => [b[0], b[1]])) : {};
+  return `<div class="card editpanel" role="region" aria-label="Настройка экрана">
+    <div class="spread" style="gap:10px"><div><h2 style="margin:0">Настройка экрана</h2>
+      <div class="mute" style="font-size:13px;margin-top:4px">Перетаскивайте блоки и вкладки меню, как приложения на iPhone. «−» скрывает, «+» возвращает.${p ? "" : " Блоки можно двигать на «Обзоре» и в «Финансах» → «Аналитика»."}</div></div>
+      <div class="row" style="gap:8px"><button type="button" class="btn sm" data-click="resetLayout">${resetArmed ? "Точно сбросить?" : "Сбросить"}</button><button type="button" class="btn pri" data-click="toggleEdit">Готово</button></div></div>
+    ${p && c.hidden.length ? `<div class="lbl" style="margin-top:12px">Скрытые блоки · ${esc(PAGE_NAME[p])}</div><div class="row" style="gap:6px;margin-top:6px">${c.hidden.map(id => `<button type="button" class="stk" data-click="blkShow" ${A(p, id)}>＋ ${esc(name[id])}</button>`).join("")}</div>` : ""}
+    ${hidNav.length ? `<div class="lbl" style="margin-top:12px">Скрытые вкладки меню</div><div class="row" style="gap:6px;margin-top:6px">${hidNav.map(k => `<button type="button" class="stk" data-click="navShow" ${A(k)}>＋ ${esc(vname[k])}</button>`).join("")}</div>` : ""}
+  </div>`;
+}
+function toggleEdit(){ editMode = !editMode; resetArmed = false; document.body.classList.toggle("editing-ui", editMode); render(); if (editMode) window.scrollTo({ top: 0, behavior: "smooth" }); }
+function resetLayout(){ if (!resetArmed) { resetArmed = true; render(); return; } resetArmed = false; saveLayout({}); toast("Вернул стандартный вид"); }
+function blkHide(p, id){ const c = pageCfg(p); if (!c.hidden.includes(id)) c.hidden.push(id); savePage(p, c); }
+function blkShow(p, id){ const c = pageCfg(p); c.hidden = c.hidden.filter(x => x !== id); savePage(p, c); }
+function blkWidth(p, id){ const c = pageCfg(p); c.w[id] = blockWidth(p, id) === 2 ? 1 : 2; savePage(p, c); }
+function blkMove(p, id, dir){
+  const c = pageCfg(p), vis = c.order.filter(x => !c.hidden.includes(x)), i = vis.indexOf(id), j = i + dir;
+  if (i < 0 || j < 0 || j >= vis.length) return;
+  [vis[i], vis[j]] = [vis[j], vis[i]];
+  c.order = [...vis, ...c.order.filter(x => !vis.includes(x))]; savePage(p, c);
+}
+function navHide(k){ const h = navHidden(); if (h.length >= VIEWS.length - 1) { toast("Хотя бы одна вкладка должна остаться"); return; } saveLayout({ ...layoutData(), navHidden: [...h, k] }); }
+function navShow(k){ saveLayout({ ...layoutData(), navHidden: navHidden().filter(x => x !== k) }); }
+
+/* перетаскивание пальцем или мышью */
+let drag = null, dropClick = false;
+const DRAG_SEL = ".blkgrid.editing > .blk, .nav.editing > button";
+function dragTarget(el){ return el && el.closest && el.closest(DRAG_SEL); }
+document.addEventListener("pointerdown", e => {
+  if (!editMode || (e.pointerType === "mouse" && e.button !== 0)) return;
+  const it = dragTarget(e.target);
+  if (!it || e.target.closest(".jx, .blkctl")) return;
+  drag = { it, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, on: false, touch: e.pointerType !== "mouse" };
+  if (drag.touch) drag.timer = setTimeout(() => { if (drag && !drag.on) liftDrag(); }, 170);
+});
+document.addEventListener("pointermove", e => {
+  if (!drag) return;
+  drag.x = e.clientX; drag.y = e.clientY;
+  const moved = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0);
+  if (!drag.on) { if (drag.touch) { if (moved > 10) cancelDrag(); } else if (moved > 5) liftDrag(); return; }
+  e.preventDefault(); placeDrag();
+});
+document.addEventListener("touchmove", e => { if (drag && (drag.on || drag.touch && Math.hypot(drag.x - drag.x0, drag.y - drag.y0) <= 10)) e.preventDefault(); }, { passive: false });
+document.addEventListener("pointerup", () => endDrag());
+document.addEventListener("pointercancel", () => { if (drag && drag.on) endDrag(); else cancelDrag(); });
+document.addEventListener("click", e => { if (dropClick) { dropClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
+function cancelDrag(){ if (drag) clearTimeout(drag.timer); drag = null; }
+function liftDrag(){
+  const it = drag.it, r = it.getBoundingClientRect();
+  const ph = document.createElement(it.tagName === "BUTTON" ? "span" : "div");
+  ph.className = "dragph " + (it.className.match(/\bw[12]\b/) || [""])[0]; ph.style.width = r.width + "px"; ph.style.height = r.height + "px";
+  it.parentNode.insertBefore(ph, it);
+  Object.assign(drag, { on: true, ph, dx: drag.x - r.left, dy: drag.y - r.top, w: r.width, h: r.height });
+  it.classList.add("lifted"); Object.assign(it.style, { width: r.width + "px", height: r.height + "px", left: r.left + "px", top: r.top + "px" });
+  if (navigator.vibrate) try { navigator.vibrate(8); } catch (_) {}
+  autoScroll();
+}
+function placeDrag(){
+  const { it, ph } = drag;
+  it.style.left = (drag.x - drag.dx) + "px"; it.style.top = (drag.y - drag.dy) + "px";
+  const under = document.elementFromPoint(drag.x, drag.y), t = dragTarget(under);
+  if (!t || t === it || t.parentNode !== ph.parentNode) return;
+  const r = t.getBoundingClientRect(), box = ph.parentNode.getBoundingClientRect();
+  const byX = r.width < box.width * 0.75;
+  const before = byX ? (drag.y < r.top + r.height * 0.25 || (drag.y <= r.bottom && drag.x < r.left + r.width / 2)) : drag.y < r.top + r.height / 2;
+  const ref = before ? t : t.nextSibling;
+  if (ref !== ph && ref !== ph.nextSibling) ph.parentNode.insertBefore(ph, ref);
+  else if (ref === ph.nextSibling && !before) ph.parentNode.insertBefore(ph, t.nextSibling);
+}
+function autoScroll(){
+  if (!drag || !drag.on) return;
+  const m = 90, y = drag.y, H = window.innerHeight; let v = 0;
+  if (y < m) v = -Math.ceil((m - y) / 6); else if (y > H - m - 60) v = Math.ceil((y - (H - m - 60)) / 6);
+  if (v) { window.scrollBy(0, v); placeDrag(); }
+  requestAnimationFrame(autoScroll);
+}
+function endDrag(){
+  if (!drag) return;
+  clearTimeout(drag.timer);
+  if (!drag.on) { drag = null; return; }
+  const { it, ph } = drag, box = ph.parentNode;
+  ph.parentNode.insertBefore(it, ph); ph.remove();
+  it.classList.remove("lifted"); ["width", "height", "left", "top"].forEach(k => it.style[k] = "");
+  drag = null; dropClick = true; setTimeout(() => { dropClick = false; }, 0); // гасим только «клик», который браузер шлёт сразу после отпускания
+  if (box.classList.contains("nav")) {
+    const vis = [...box.querySelectorAll(":scope > button")].map(b => b.dataset.v);
+    saveLayout({ ...layoutData(), nav: [...vis, ...navOrder().filter(k => !vis.includes(k))] });
+  } else {
+    const p = box.dataset.page, c = pageCfg(p), vis = [...box.querySelectorAll(":scope > .blk")].map(b => b.dataset.blk);
+    c.order = [...vis, ...c.order.filter(x => !vis.includes(x))]; savePage(p, c);
+  }
+}
+// долгое нажатие на блок или вкладку включает настройку, как на iPhone
+let lp = null, lpFired = false;
+document.addEventListener("pointerup", () => { if (lpFired) { lpFired = false; dropClick = true; setTimeout(() => { dropClick = false; }, 0); } }, true);
+document.addEventListener("pointerdown", e => {
+  if (editMode || (e.pointerType === "mouse" && e.button !== 0)) return;
+  const it = e.target.closest && e.target.closest(".blkgrid > .blk, .nav > button");
+  if (!it || e.target.closest("input, textarea, select, a, [contenteditable]")) return;
+  const x0 = e.clientX, y0 = e.clientY;
+  lp = { x0, y0, t: setTimeout(() => { lp = null; lpFired = true; toggleEdit(); if (navigator.vibrate) try { navigator.vibrate(12); } catch (_) {} }, 650) };
+});
+document.addEventListener("pointermove", e => { if (lp && Math.hypot(e.clientX - lp.x0, e.clientY - lp.y0) > 8) { clearTimeout(lp.t); lp = null; } });
+["pointerup", "pointercancel", "scroll"].forEach(ev => document.addEventListener(ev, () => { if (lp) { clearTimeout(lp.t); lp = null; } }, { passive: true }));
+document.addEventListener("contextmenu", e => { if (e.target.closest && e.target.closest(".blkgrid > .blk, .nav > button") && !e.target.closest("input, textarea")) e.preventDefault(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && editMode) toggleEdit(); });
+
 /* ---------- actions: единый диспетчер вместо onclick в разметке ---------- */
 const A = (...args) => `data-args="${esc(JSON.stringify(args))}"`;
 const ACTIONS = {
   go, del, toggleTask, quickDay, shiftMonth, pickMonth, paySub, toggleHabit, pickNote, newNote, noteInput, moveCard,
   setPayKindForm, setNoteGroup, noteSearch, toggleSticker, togglePin, noteFilterGroup, noteFilterSticker,
   stmtPick, stmtToggle, stmtAll, stmtCat, stmtCancel, stmtSave,
+  toggleEdit, resetLayout, blkHide, blkShow, blkWidth, blkMove, navHide, navShow,
   homeTab: k => { homeTab = k; render(); },
   taskTab: k => { taskTab = k; render(); },
   healthTab: k => { healthTab = k; render(); },
@@ -935,7 +1076,7 @@ async function signOut(){
   authMode = "login"; authMsg = "Вы вышли из кабинета."; drawAuth();
 }
 function wipeUi(){
-  COLS.forEach(c => S[c] = {}); curNote = null; noteGroup = null; noteSticker = null; noteQuery = ""; moneyPicked = false; moneyMonth = today().slice(0,7); moneyTab = "dash"; imp = null;
+  COLS.forEach(c => S[c] = {}); curNote = null; noteGroup = null; noteSticker = null; noteQuery = ""; moneyPicked = false; moneyMonth = today().slice(0,7); moneyTab = "dash"; imp = null; editMode = false; document.body.classList.remove("editing-ui");
   $("#view").innerHTML = ""; $("#nav").innerHTML = ""; $("#who").textContent = "";
 }
 function signedOut(msg){ applySession(null); wipeUi(); authMode = "login"; authMsg = msg || ""; drawAuth(); }

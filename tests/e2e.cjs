@@ -173,6 +173,62 @@ process.on("unhandledRejection", async e => { console.log("ERR", e.message.split
   // все разделы рендерятся без ошибок
   await page.click('[data-v="habits"]'); check('Плашки про уведомления больше нет', !(await page.textContent('#view')).includes('Напишите в чат'));
   for (const v of ['home','tasks','habits','cal','health','money','notes']) { await page.click(`[data-v="${v}"]`); }
+  // настройка экрана (как на iPhone)
+  const lay = () => (rows.find(r => r.col === 'meta' && r.id === 'layout' && r.user_id === rows.find(x => x.col === 'tasks').user_id) || { data: {} }).data;
+  const order = () => page.$$eval('.blkgrid[data-page="home"] > .blk', bs => bs.map(b => b.dataset.blk));
+  await page.click('[data-v="home"]'); await page.click('.rail .editbtn'); await page.waitForTimeout(150);
+  check('Кнопка «Настроить» включает режим настройки: блоки и вкладки «дрожат»', await page.isVisible('.editpanel') && !!(await page.$('.blkgrid.editing')) && !!(await page.$('#nav.editing')) && await page.$eval('.blkgrid.editing > .blk', e => getComputedStyle(e).animationName === 'jiggle'));
+  await page.click('.blk[data-blk="prod"] .jx', { force: true }); await page.waitForTimeout(150);
+  check('«−» скрывает блок и запоминает это в кабинете', !(await page.$('.blk[data-blk="prod"]')) && (lay().pages.home.hidden || []).includes('prod') && (await page.textContent('.editpanel')).includes('Продуктивность'));
+  await page.click('.editpanel [data-click="blkShow"]', { force: true }); await page.waitForTimeout(150);
+  check('«+» возвращает скрытый блок', !!(await page.$('.blk[data-blk="prod"]')) && !(lay().pages.home.hidden || []).includes('prod'));
+  await page.click('.blk[data-blk="score"] [data-click="blkMove"] >> nth=1', { force: true }); await page.waitForTimeout(150);
+  check('Кнопка ↓ опускает блок', (await order())[1] === 'score' && lay().pages.home.order[1] === 'score');
+  const dragTo = async (from, to, pos) => { const a = await page.$eval(from, e => { const r = e.querySelector('.blkname, .nl').getBoundingClientRect(); return [r.left + 10, r.top + r.height / 2]; });
+    await page.mouse.move(a[0], a[1]); await page.mouse.down(); for (let i = 1; i <= 12; i++) { const b = await page.$eval(to, (e, pos) => { const r = e.getBoundingClientRect(); return pos === 'top' ? [r.left + r.width / 2, r.top + 6] : [r.left + r.width / 2, r.bottom - 6]; }, pos); await page.mouse.move(a[0] + (b[0] - a[0]) * i / 12, a[1] + (b[1] - a[1]) * i / 12); await page.waitForTimeout(16); } await page.mouse.up(); await page.waitForTimeout(200); };
+  await page.evaluate(() => scrollTo(0, 0));
+  await page.evaluate(() => document.querySelector('.blk[data-blk="tiles"]').scrollIntoView({ block: 'start' }));
+  await dragTo('.blk[data-blk="habits"]', '.blk[data-blk="tiles"]', 'top');
+  check('Блок перетаскивается мышью на новое место', (await order()).indexOf('habits') < (await order()).indexOf('tiles') && lay().pages.home.order.indexOf('habits') < lay().pages.home.order.indexOf('tiles'));
+  check('После перетаскивания не осталось «призрака» и висящего блока', !(await page.$('.dragph')) && !(await page.$('.lifted')));
+  await page.click('.blk[data-blk="tasks"] .wbtn', { force: true }); await page.waitForTimeout(150);
+  check('Ширина блока переключается (столбцы)', lay().pages.home.w.tasks === 2 && await page.$eval('.blk[data-blk="tasks"]', e => e.classList.contains('w2')));
+  await page.click('.blk[data-blk="tasks"] [data-click="homeTab"] >> nth=1', { force: true }).catch(() => {}); await page.waitForTimeout(100);
+  check('В режиме настройки кнопки внутри блоков не срабатывают случайно', (await page.textContent('.blk[data-blk="tasks"]')).includes('На сегодня'));
+  await page.click('#nav [data-v="health"] .jx', { force: true }); await page.waitForTimeout(150);
+  check('Вкладку меню можно скрыть', !(await page.$('#nav [data-v="health"]')) && lay().navHidden.includes('health') && (await page.textContent('.editpanel')).includes('Здоровье'));
+  await page.click('.editpanel [data-click="navShow"]', { force: true }); await page.waitForTimeout(150);
+  check('Скрытая вкладка возвращается', !!(await page.$('#nav [data-v="health"]')) && !lay().navHidden.includes('health'));
+  await dragTo('#nav [data-v="notes"]', '#nav [data-v="home"]', 'top');
+  const navKeys = await page.$$eval('#nav > button', bs => bs.map(b => b.dataset.v));
+  check('Вкладки меню перетаскиваются, и порядок сохраняется', navKeys[0] === 'notes' && lay().nav[0] === 'notes' && (await page.textContent('h1')).includes('Добрый') || (await page.textContent('h1')).includes('Доброе') || (await page.textContent('h1')).includes('Доброй'));
+  await page.click('.editpanel [data-click="toggleEdit"]', { force: true }); await page.waitForTimeout(150);
+  check('«Готово» выключает режим настройки', !(await page.$('.blkgrid.editing')) && !(await page.$('.editpanel')));
+  await page.reload(); await page.waitForSelector('.app:not([hidden])'); await page.waitForTimeout(300); await page.click('[data-v="home"]');
+  const after = await order();
+  check('Расположение сохраняется после перезагрузки', after.indexOf('habits') < after.indexOf('tiles') && (await page.$$eval('#nav > button', bs => bs[0].dataset.v)) === 'notes');
+  // палец на телефоне: удержание + перетаскивание, и обычная прокрутка не двигает блоки
+  await page.setViewportSize({ width: 390, height: 844 }); await page.click('.rail .editbtn'); await page.waitForTimeout(200);
+  await page.evaluate(() => scrollTo(0, 0));
+  const cdp = await ctx.newCDPSession(page);
+  const touch = async (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+  const center = sel => page.$eval(sel, e => { const r = e.querySelector('.blkname').getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; });
+  let o1 = await order(); const firstId = o1[0], secondId = o1[1];
+  let [sx, sy] = await center(`.blk[data-blk="${firstId}"]`);
+  await touch('touchStart', sx, sy); for (let i = 1; i <= 6; i++) { await touch('touchMove', sx, sy + i * 15); await page.waitForTimeout(10); } await touch('touchEnd');
+  await page.waitForTimeout(200);
+  check('Быстрый свайп пальцем не двигает блок (страница просто листается)', JSON.stringify(await order()) === JSON.stringify(o1));
+  await page.evaluate(() => scrollTo(0, 0)); [sx, sy] = await center(`.blk[data-blk="${secondId}"]`);
+  const target = await page.$eval(`.blk[data-blk="${firstId}"]`, e => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + 10]; });
+  await touch('touchStart', sx, sy); await page.waitForTimeout(260);
+  for (let i = 1; i <= 15; i++) { await touch('touchMove', sx + (target[0] - sx) * i / 15, sy + (target[1] - sy) * i / 15); await page.waitForTimeout(16); }
+  await touch('touchEnd'); await page.waitForTimeout(250);
+  const o2 = await order();
+  check('Удержание пальцем и перетаскивание переставляет блок', o2[0] === secondId && o2[1] === firstId);
+  await page.click('.editpanel [data-click="resetLayout"]', { force: true }); await page.click('.editpanel [data-click="resetLayout"]', { force: true }); await page.waitForTimeout(200);
+  check('«Сбросить» возвращает стандартный вид', JSON.stringify(lay()) === '{}' && (await order())[0] === 'score' && (await page.$$eval('#nav > button', bs => bs[0].dataset.v)) === 'home');
+  await page.click('.editpanel [data-click="toggleEdit"]', { force: true }); await page.waitForTimeout(100);
+  await page.setViewportSize({ width: 1280, height: 860 });
   // телефон: разделы внизу экрана
   await page.setViewportSize({ width: 390, height: 844 }); await page.click('[data-v="home"]'); await page.waitForTimeout(150);
   const nb = await page.evaluate(() => { const r = document.querySelector('#nav').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: innerHeight, w: r.width }; });
