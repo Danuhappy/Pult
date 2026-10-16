@@ -84,20 +84,6 @@ img{max-width:100%}
 }
 :root[data-theme="light"] .card,:root[data-theme="light"] .tile:not(.a):not(.b):not(.ice),:root[data-theme="light"] .week,:root[data-theme="light"] .banner{box-shadow:0 1px 0 rgba(255,255,255,.9) inset,0 12px 32px -18px rgba(17,19,24,.25)}
 :root[data-theme="light"] .tile.a .lbl,:root[data-theme="light"] .tile.a .mute,:root[data-theme="light"] .tile.b .lbl,:root[data-theme="light"] .tile.b .mute{color:rgba(17,19,24,.75)}
-/* «Яркий»: глубокий фиолетовый, бирюза, розовый и солнечный жёлтый */
-:root[data-theme="vivid"]{
-  --ice:#FFF4D6; --lime:#2EE6D6; --ink:#140A2E; --pink:#FF4FA3;
-  --ov-c:244,238,255; --lime-c:46,230,214; --pink-c:255,79,163; --ink-c:20,10,46; --bg-c:20,10,46; --bar-c:28,14,60;
-  --bg:#140A2E; --fg:#F7F3FF; --mute:#b5abd1;
-  --good:#2EE6D6; --bad:#FF6B8B; --warn:#FFC94D; --accent-text:#2EE6D6;
-  --plaque:#FFC94D; --plaque-ink:#140A2E; --bar2:#FFC94D; --plaque-glow:rgba(255,201,77,.45);
-  --g1:#7C4DFF; --g1o:.55; --g2:#FF4FA3; --g2o:.45; --g3:#2EE6D6; --g3o:.30;
-  --s1:#FFC94D; --s2:#2EE6D6; --s3:#FF4FA3; --s4:#7C4DFF; --s5:#FF8A3D; --s6:#5BC0FF;
-  --c1:#2EE6D6; --c2:#FF4FA3; --c3:#FFC94D; --c4:#7C4DFF; --c5:#FF8A3D; --c6:#5BC0FF; --c7:#B5F03C; --c8:#FF6B8B; --c9:#b5abd1;
-}
-:root[data-theme="vivid"] .tile.a{background:linear-gradient(135deg,#2EE6D6,#5BC0FF)}
-:root[data-theme="vivid"] .tile.b{background:linear-gradient(135deg,#FF4FA3,#FF8A3D)}
-:root[data-theme="vivid"] .btn.pri{background:linear-gradient(135deg,#2EE6D6,#7CF0B0);border:0}
 html,body{height:100%}
 .glow{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 .glow i{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55}
@@ -418,3 +404,51 @@ button.tile.tlink:hover{border-color:rgba(var(--ov-c),.25)}
 
 .rail .foot #who{flex:1 1 calc(100% - 20px)}
 @media (max-width:900px){.rail .foot #who{flex:none}}
+/* «Закат», «Тропики», «Океан»: яркие тёмные темы */
+:root[data-theme="sunset"]{
+  --ice:#7FE7D5; --lime:#FFB020; --ink:#1C0F0B; --pink:#FF5E5B;
+  --ov-c:255,243,234; --lime-c:255,176,32; --pink-c:255,94,91; --ink-c:28,15,11; --bg-c:28,15,11; --bar-c:42,22,16;
+  --bg:#1C0F0B; --fg:#FFF6EF; --mute:#c9b3a6;
+  --good:#FFB020; --bad:#FF5E5B; --warn:#7FE7D5; --accent-text:#FFB020;
+  --plaque:#7FE7D5; --plaque-ink:#1C0F0B; --plaque-glow:rgba(127,231,213,.40); --bar2:#7FE7D5;
+  --g1:#FF7A2F; --g1o:0.45; --g2:#FF3D6E; --g2o:0.35; --g3:#FFB020; --g3o:0.25;
+  --s1:#7FE7D5; --s2:#FFB020; --s3:#FF5E5B; --s4:#FFD25E; --s5:#FF8A5B; --s6:#C3E86B;
+  --c1:#FFB020; --c2:#FF5E5B; --c3:#7FE7D5; --c4:#FFD25E; --c5:#FF8A5B; --c6:#C3E86B; --c7:#FF9EC4; --c8:#E86B3D; --c9:#c9b3a6;
+}
+:root[data-theme="sunset"] .tile.a{background:linear-gradient(135deg,#FFB020,#FFD25E)}
+:root[data-theme="sunset"] .tile.b{background:linear-gradient(135deg,#FF5E5B,#FF8A5B)}
+:root[data-theme="sunset"] .btn.pri{background:linear-gradient(135deg,#FFB020,#FFD25E);border:0}
+
+:root[data-theme="tropic"]{
+  --ice:#FFD34D; --lime:#3DF2A6; --ink:#04201D; --pink:#FF6B5B;
+  --ov-c:239,255,248; --lime-c:61,242,166; --pink-c:255,107,91; --ink-c:4,32,29; --bg-c:4,32,29; --bar-c:8,43,39;
+  --bg:#04201D; --fg:#F2FFF9; --mute:#a5c7bd;
+  --good:#3DF2A6; --bad:#FF6B5B; --warn:#FFD34D; --accent-text:#3DF2A6;
+  --plaque:#FFD34D; --plaque-ink:#04201D; --plaque-glow:rgba(255,211,77,.40); --bar2:#FFD34D;
+  --g1:#10B981; --g1o:0.45; --g2:#06B6D4; --g2o:0.35; --g3:#FF6B5B; --g3o:0.22;
+  --s1:#FFD34D; --s2:#3DF2A6; --s3:#FF6B5B; --s4:#06B6D4; --s5:#FF9A62; --s6:#B7F34D;
+  --c1:#3DF2A6; --c2:#FF6B5B; --c3:#FFD34D; --c4:#06B6D4; --c5:#FF9A62; --c6:#B7F34D; --c7:#7DD3FC; --c8:#F472B6; --c9:#a5c7bd;
+}
+:root[data-theme="tropic"] .tile.a{background:linear-gradient(135deg,#3DF2A6,#9BF7C9)}
+:root[data-theme="tropic"] .tile.b{background:linear-gradient(135deg,#FF6B5B,#FF9A62)}
+:root[data-theme="tropic"] .btn.pri{background:linear-gradient(135deg,#3DF2A6,#9BF7C9);border:0}
+
+:root[data-theme="ocean"]{
+  --ice:#FDE68A; --lime:#38BDF8; --ink:#061630; --pink:#FF7A59;
+  --ov-c:238,246,255; --lime-c:56,189,248; --pink-c:255,122,89; --ink-c:6,22,48; --bg-c:6,22,48; --bar-c:10,30,62;
+  --bg:#061630; --fg:#F2F8FF; --mute:#a3b5cf;
+  --good:#38BDF8; --bad:#FF7A59; --warn:#FDE68A; --accent-text:#38BDF8;
+  --plaque:#FDE68A; --plaque-ink:#061630; --plaque-glow:rgba(253,230,138,.40); --bar2:#FDE68A;
+  --g1:#2563EB; --g1o:0.5; --g2:#22D3EE; --g2o:0.3; --g3:#FF7A59; --g3o:0.22;
+  --s1:#FDE68A; --s2:#38BDF8; --s3:#FF7A59; --s4:#2EE6D6; --s5:#FFA45C; --s6:#A78BFA;
+  --c1:#38BDF8; --c2:#FF7A59; --c3:#FDE68A; --c4:#2EE6D6; --c5:#FFA45C; --c6:#A78BFA; --c7:#86EFAC; --c8:#F472B6; --c9:#a3b5cf;
+}
+:root[data-theme="ocean"] .tile.a{background:linear-gradient(135deg,#38BDF8,#7DD3FC)}
+:root[data-theme="ocean"] .tile.b{background:linear-gradient(135deg,#FF7A59,#FFA45C)}
+:root[data-theme="ocean"] .btn.pri{background:linear-gradient(135deg,#38BDF8,#7DD3FC);border:0}
+
+/* выбор темы в «Настроить» */
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:10px;margin-top:8px}
+.thm{display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 6px;border-radius:16px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;color:var(--fg);font-size:13px}
+.thm i{width:46px;height:46px;border-radius:50%;display:block;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25),0 6px 16px -6px rgba(0,0,0,.6)}
+.thm.on{border-color:var(--accent-text);box-shadow:0 0 0 2px var(--accent-text) inset}

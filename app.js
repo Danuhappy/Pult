@@ -89,6 +89,7 @@ async function loadAll(){
     if (rows.length < 1000) break;
   }
   COLS.forEach(c => S[c] = fresh[c]);
+  { const th = (S.meta.settings || {}).theme; if (themeOk(th) && th !== currentTheme()) applyTheme(th); }
   if (!moneyPicked) { const ms = monthsWithMoney(); if (ms.length && !ms.some(([k]) => k === moneyMonth)) moneyMonth = ms[0][0]; }
   netError = ""; render();
 }
@@ -807,6 +808,32 @@ function boardHtml(){
     <form data-submit="addCard" ${A(k)} class="compose" style="margin-top:10px"><input type="text" id="kAdd${k}" aria-label="Новая карточка в колонку ${n}" name="c" placeholder="Новая карточка" autocomplete="off"><button class="btn sm">+</button></form></div>`;}).join("")}</div>`;
 }
 
+/* ---------- темы оформления ---------- */
+const THEMES = [
+  ["neon", "Неон", "#0D0303", "linear-gradient(135deg,#BBEF1F 0 40%,#FF0055 40% 70%,#0D0303 70%)"],
+  ["black", "Чёрный", "#000000", "radial-gradient(circle at 30% 30%,#fff 0 2px,transparent 3px),radial-gradient(circle at 70% 60%,#fff 0 1.5px,transparent 2.5px),linear-gradient(135deg,#2a1f7a,#000 60%,#0b2a6e)"],
+  ["light", "Светлый", "#F4F5F7", "linear-gradient(135deg,#FFFFFF 0 45%,#BBEF1F 45% 70%,#FF0055 70%)"],
+  ["sunset", "Закат", "#1C0F0B", "linear-gradient(135deg,#FFB020 0 40%,#FF5E5B 40% 70%,#7FE7D5 70%)"],
+  ["tropic", "Тропики", "#04201D", "linear-gradient(135deg,#3DF2A6 0 40%,#FF6B5B 40% 70%,#FFD34D 70%)"],
+  ["ocean", "Океан", "#061630", "linear-gradient(135deg,#38BDF8 0 40%,#FF7A59 40% 70%,#FDE68A 70%)"]
+];
+const THEME_KEY = "pulse.theme";
+const themeOk = t => THEMES.some(x => x[0] === t);
+function applyTheme(t){
+  if (!themeOk(t)) t = "neon";
+  const el = document.documentElement;
+  if (t === "neon") el.removeAttribute("data-theme"); else el.setAttribute("data-theme", t);
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.setAttribute("content", THEMES.find(x => x[0] === t)[2]);
+  try { localStorage.setItem(THEME_KEY, t); } catch (_) {}
+}
+function currentTheme(){ const t = document.documentElement.getAttribute("data-theme"); return themeOk(t) ? t : "neon"; }
+function setTheme(t){ if (!themeOk(t)) return; applyTheme(t); save("meta", "settings", { ...(S.meta.settings || {}), theme: t }); }
+try { applyTheme(localStorage.getItem(THEME_KEY)); } catch (_) {}
+function themePicker(){
+  const cur = currentTheme();
+  return `<div class="lbl" style="margin-top:14px">Тема оформления</div><div class="themes" role="radiogroup" aria-label="Тема оформления">${THEMES.map(([k, n, , sw]) => `<button type="button" class="thm ${k === cur ? "on" : ""}" role="radio" aria-checked="${k === cur}" data-click="setTheme" ${A(k)}><i style="background:${sw}"></i>${n}</button>`).join("")}</div>`;
+}
+
 /* ---------- настройка экрана: перетаскивание блоков и вкладок, как на главном экране iPhone ---------- */
 // Порядок, скрытые блоки и ширина хранятся в кабинете (meta/layout), поэтому одинаковы на телефоне и компьютере.
 let editMode = false, resetArmed = false;
@@ -851,6 +878,7 @@ function editPanel(p){
     <div class="spread" style="gap:10px"><div><h2 style="margin:0">Настройка экрана</h2>
       <div class="mute" style="font-size:13px;margin-top:4px">Перетаскивайте блоки и вкладки меню, как приложения на iPhone. «−» скрывает, «+» возвращает.${p ? "" : " Блоки можно двигать на «Обзоре» и в «Финансах» → «Аналитика»."}</div></div>
       <div class="row" style="gap:8px"><button type="button" class="btn sm" data-click="resetLayout">${resetArmed ? "Точно сбросить?" : "Сбросить"}</button><button type="button" class="btn pri" data-click="toggleEdit">Готово</button></div></div>
+    ${themePicker()}
     ${p && c.hidden.length ? `<div class="lbl" style="margin-top:12px">Скрытые блоки · ${esc(PAGE_NAME[p])}</div><div class="row" style="gap:6px;margin-top:6px">${c.hidden.map(id => `<button type="button" class="stk" data-click="blkShow" ${A(p, id)}>＋ ${esc(name[id])}</button>`).join("")}</div>` : ""}
     ${hidNav.length ? `<div class="lbl" style="margin-top:12px">Скрытые вкладки меню</div><div class="row" style="gap:6px;margin-top:6px">${hidNav.map(k => `<button type="button" class="stk" data-click="navShow" ${A(k)}>＋ ${esc(vname[k])}</button>`).join("")}</div>` : ""}
   </div>`;
@@ -959,6 +987,7 @@ const ACTIONS = {
   setPayKindForm, setNoteGroup, noteSearch, toggleSticker, togglePin, noteFilterGroup, noteFilterSticker,
   stmtPick, stmtToggle, stmtAll, stmtCat, stmtCancel, stmtSave,
   toggleEdit, resetLayout, blkHide, blkShow, blkWidth, blkMove, navHide, navShow,
+  setTheme,
   homeTab: k => { homeTab = k; render(); },
   taskTab: k => { taskTab = k; render(); },
   healthTab: k => { healthTab = k; render(); },

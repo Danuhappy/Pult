@@ -214,11 +214,12 @@ process.on("unhandledRejection", async e => { console.log("ERR", e.message.split
   const touch = async (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
   const center = sel => page.$eval(sel, e => { const r = e.querySelector('.blkname').getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; });
   let o1 = await order(); const firstId = o1[0], secondId = o1[1];
+  await page.evaluate(id => { document.querySelector(`.blk[data-blk="${id}"]`).scrollIntoView({ block: 'start' }); }, firstId);
   let [sx, sy] = await center(`.blk[data-blk="${firstId}"]`);
   await touch('touchStart', sx, sy); for (let i = 1; i <= 6; i++) { await touch('touchMove', sx, sy + i * 15); await page.waitForTimeout(10); } await touch('touchEnd');
   await page.waitForTimeout(200);
   check('Быстрый свайп пальцем не двигает блок (страница просто листается)', JSON.stringify(await order()) === JSON.stringify(o1));
-  await page.evaluate(() => scrollTo(0, 0)); [sx, sy] = await center(`.blk[data-blk="${secondId}"]`);
+  await page.evaluate(id => { document.querySelector(`.blk[data-blk="${id}"]`).scrollIntoView({ block: 'start' }); scrollBy(0, -20); }, firstId); await page.waitForTimeout(100); [sx, sy] = await center(`.blk[data-blk="${secondId}"]`);
   const target = await page.$eval(`.blk[data-blk="${firstId}"]`, e => { const r = e.getBoundingClientRect(); return [r.left + r.width / 2, r.top + 10]; });
   await touch('touchStart', sx, sy); await page.waitForTimeout(260);
   for (let i = 1; i <= 15; i++) { await touch('touchMove', sx + (target[0] - sx) * i / 15, sy + (target[1] - sy) * i / 15); await page.waitForTimeout(16); }
@@ -229,6 +230,23 @@ process.on("unhandledRejection", async e => { console.log("ERR", e.message.split
   check('«Сбросить» возвращает стандартный вид', JSON.stringify(lay()) === '{}' && (await order())[0] === 'score' && (await page.$$eval('#nav > button', bs => bs[0].dataset.v)) === 'home');
   await page.click('.editpanel [data-click="toggleEdit"]', { force: true }); await page.waitForTimeout(100);
   await page.setViewportSize({ width: 1280, height: 860 });
+  // темы оформления
+  const meta = () => (rows.find(r => r.col === 'meta' && r.id === 'settings' && r.user_id === rows.find(x => x.col === 'tasks').user_id) || { data: {} }).data;
+  await page.click('[data-v="home"]'); await page.click('.rail .editbtn', { force: true }); await page.waitForTimeout(150);
+  check('В «Настроить» есть выбор из 6 тем', (await page.$$('.themes .thm')).length === 6 && (await page.textContent('.themes')).includes('Океан') && !(await page.textContent('.themes')).includes('Яркий'));
+  for (const th of ['black', 'light', 'sunset', 'tropic', 'ocean']) {
+    await page.click(`.thm[data-args='["${th}"]']`, { force: true }); await page.waitForTimeout(120);
+    const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    check(`Тема «${th}» включается и сохраняется в кабинете`, await page.evaluate(() => document.documentElement.dataset.theme) === th && meta().theme === th && bg !== 'rgb(13, 3, 3)');
+  }
+  await page.click(`.thm[data-args='["light"]']`, { force: true }); await page.waitForTimeout(150);
+  await page.click('.editpanel [data-click="toggleEdit"]', { force: true }); await page.reload(); await page.waitForSelector('.app:not([hidden])'); await page.waitForTimeout(300);
+  check('Выбранная тема остаётся после перезагрузки', await page.evaluate(() => document.documentElement.dataset.theme) === 'light' && await page.evaluate(() => getComputedStyle(document.body).backgroundColor) === 'rgb(244, 245, 247)');
+  await page.evaluate(() => localStorage.removeItem('pulse.theme')); await page.reload(); await page.waitForSelector('.app:not([hidden])'); await page.waitForTimeout(400);
+  check('Тема подтягивается из кабинета на другом устройстве', await page.evaluate(() => document.documentElement.dataset.theme) === 'light');
+  await page.click('.rail .editbtn', { force: true }); await page.click(`.thm[data-args='["neon"]']`, { force: true }); await page.waitForTimeout(150);
+  check('Возврат к «Неону» убирает тему', !(await page.evaluate(() => document.documentElement.hasAttribute('data-theme'))) && meta().theme === 'neon');
+  await page.click('.editpanel [data-click="toggleEdit"]', { force: true }); await page.waitForTimeout(100);
   // телефон: разделы внизу экрана
   await page.setViewportSize({ width: 390, height: 844 }); await page.click('[data-v="home"]'); await page.waitForTimeout(150);
   const nb = await page.evaluate(() => { const r = document.querySelector('#nav').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: innerHeight, w: r.width }; });
