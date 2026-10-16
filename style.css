@@ -266,3 +266,20 @@ input[type=email],input[type=password]{background:var(--panel2);border:1px solid
   .improw .t{flex:1 1 calc(100% - 110px)}
   .improw select{margin-left:30px;flex:1 1 auto;width:auto}
 }
+/* телефон: разделы внизу, как панель вкладок на iPhone */
+@media (max-width:900px){
+  .rail{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(13,3,3,.86);overflow:visible;justify-content:space-between;padding-top:10px;padding-bottom:10px}
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:0;
+    padding:6px max(4px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(4px,env(safe-area-inset-left,0px));
+    background:rgba(22,8,11,.86);-webkit-backdrop-filter:blur(24px) saturate(170%);backdrop-filter:blur(24px) saturate(170%);
+    border-top:1px solid var(--line);box-shadow:0 -12px 40px -20px rgba(0,0,0,.9)}
+  .nav button{position:relative;flex-direction:column;justify-content:center;align-items:center;gap:3px;min-width:0;min-height:50px;padding:5px 0 3px;border-radius:12px;font-size:10px;line-height:1.15;color:var(--mute);-webkit-tap-highlight-color:transparent}
+  .nav button svg{width:24px;height:24px}
+  .nav button .nl{display:block;max-width:100%;overflow:hidden;text-overflow:clip;white-space:nowrap;letter-spacing:-.02em}
+  .nav button.on{background:none;color:var(--lime)}
+  .nav button.on svg{filter:drop-shadow(0 0 8px rgba(187,239,31,.55))}
+  .nav button .cnt{display:block;position:absolute;top:1px;left:calc(50% + 5px);margin:0;padding:0 4px;min-width:16px;height:16px;line-height:16px;border-radius:8px;background:var(--pink);color:var(--ink);font-family:inherit;font-size:10px;font-weight:700;text-align:center}
+  main{padding-bottom:calc(100px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+}
+@media (max-width:370px){.nav button{font-size:9px}.nav button svg{width:22px;height:22px}}

@@ -173,6 +173,15 @@ process.on("unhandledRejection", async e => { console.log("ERR", e.message.split
   // все разделы рендерятся без ошибок
   await page.click('[data-v="habits"]'); check('Плашки про уведомления больше нет', !(await page.textContent('#view')).includes('Напишите в чат'));
   for (const v of ['home','tasks','habits','cal','health','money','notes']) { await page.click(`[data-v="${v}"]`); }
+  // телефон: разделы внизу экрана
+  await page.setViewportSize({ width: 390, height: 844 }); await page.click('[data-v="home"]'); await page.waitForTimeout(150);
+  const nb = await page.evaluate(() => { const r = document.querySelector('#nav').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: innerHeight, w: r.width }; });
+  check('На телефоне вкладки разделов прижаты к низу экрана', Math.round(nb.bottom) === nb.h && nb.top > nb.h - 120 && Math.round(nb.w) === 390);
+  await page.click('[data-v="money"]'); await page.waitForTimeout(150);
+  check('Нижняя вкладка переключает раздел', (await page.textContent('h1')).includes('Финансы') && await page.$eval('[data-v="money"]', e => e.classList.contains('on')));
+  await page.evaluate(() => scrollTo(0, document.body.scrollHeight)); await page.waitForTimeout(100);
+  check('Нижние вкладки не закрывают конец страницы', await page.evaluate(() => { const c = [...document.querySelectorAll('main .card')].pop().getBoundingClientRect(); return c.bottom <= document.querySelector('#nav').getBoundingClientRect().top; }));
+  await page.setViewportSize({ width: 1280, height: 860 });
   await page.screenshot({ path: process.env.SHOT || '/tmp/e2e.png' });
   check('Нет нарушений политики безопасности (CSP) в консоли', csp.length === 0);
   check('Нет ошибок JavaScript', errs.length === 0);

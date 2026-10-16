@@ -144,7 +144,7 @@ function navCount(k){
   return n ? `<span class="cnt">${n}</span>` : "";
 }
 function drawNav(){
-  $("#nav").innerHTML = VIEWS.map(([k,t,i])=>`<button data-v="${k}" class="${k===view?"on":""}" ${k===view?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${IC[i]}</svg>${t}${navCount(k)}</button>`).join("");
+  $("#nav").innerHTML = VIEWS.map(([k,t,i])=>`<button data-v="${k}" class="${k===view?"on":""}" ${k===view?'aria-current="page"':""}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${IC[i]}</svg><span class="nl">${t}</span>${navCount(k)}</button>`).join("");
 }
 $("#nav").addEventListener("click", e=>{ const b=e.target.closest("button"); if(!b) return; go(b.dataset.v); });
 function go(v){ view=v; try{history.replaceState(null,"","#"+v);}catch(_){} drawNav(); render(); window.scrollTo(0,0); }
