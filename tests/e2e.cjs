@@ -177,7 +177,13 @@ process.on("unhandledRejection", async e => { console.log("ERR", e.message.split
   await page.setViewportSize({ width: 390, height: 844 }); await page.click('[data-v="home"]'); await page.waitForTimeout(150);
   const nb = await page.evaluate(() => { const r = document.querySelector('#nav').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: innerHeight, w: r.width }; });
   check('На телефоне вкладки разделов прижаты к низу экрана', Math.round(nb.bottom) === nb.h && nb.top > nb.h - 120 && Math.round(nb.w) === 390);
+  check('На «Обзоре» видны ближайшие обязательные платежи (на месяц вперёд)', (await page.textContent('#view')).includes('Ближайшие обязательные платежи') && (await page.textContent('#view')).includes('Облако'));
   await page.click('[data-v="money"]'); await page.waitForTimeout(150);
+  const pt = await page.$eval('.mtabs [data-args=\'["subs"]\']', e => { const r = e.getBoundingClientRect(); return { top: r.top, vis: r.width > 0 && getComputedStyle(e).visibility !== 'hidden' }; });
+  check('На телефоне вкладка «Платежи» видна сразу, без прокрутки', pt.vis && pt.top > 0 && pt.top < 600);
+  await page.click('.mtabs [data-args=\'["subs"]\']'); await page.waitForTimeout(150);
+  check('Список платежей стоит выше формы добавления', await page.evaluate(() => { const l = [...document.querySelectorAll('#view .card h2')].find(h => /Подписки|Кредиты/.test(h.textContent)); const f = document.querySelector('form[data-submit="addSub"]'); return !!l && !!f && l.getBoundingClientRect().top < f.getBoundingClientRect().top; }));
+  await page.click('.mtabs [data-args=\'["dash"]\']'); await page.waitForTimeout(100);
   check('Нижняя вкладка переключает раздел', (await page.textContent('h1')).includes('Финансы') && await page.$eval('[data-v="money"]', e => e.classList.contains('on')));
   await page.evaluate(() => scrollTo(0, document.body.scrollHeight)); await page.waitForTimeout(100);
   check('Нижние вкладки не закрывают конец страницы', await page.evaluate(() => { const c = [...document.querySelectorAll('main .card')].pop().getBoundingClientRect(); return c.bottom <= document.querySelector('#nav').getBoundingClientRect().top; }));

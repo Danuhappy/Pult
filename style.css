@@ -283,3 +283,19 @@ input[type=email],input[type=password]{background:var(--panel2);border:1px solid
   .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 }
 @media (max-width:370px){.nav button{font-size:9px}.nav button svg{width:22px;height:22px}}
+/* финансы: вкладки разделов сверху, короткие подписи на телефоне */
+.mtabs .tl-short{display:none}
+button.tile.tlink{font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
+button.tile.tlink:hover{border-color:rgba(239,248,255,.25)}
+@media (max-width:620px){
+  .mtabs{flex-wrap:nowrap;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0}
+  .mtabs button{padding:10px 2px;font-size:14px;text-align:center;white-space:nowrap}
+  .mtabs .tl-full{display:none}.mtabs .tl-short{display:inline}
+}
+.mtabs button{font-size:15px}
+@media (max-width:620px){
+  .payrow{row-gap:8px}
+  .payrow .t{flex:1 1 100%}
+  .payrow > .mute{margin-right:auto}
+  .payrow .chip{white-space:nowrap}
+}

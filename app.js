@@ -235,7 +235,7 @@ function vHome(){
   const expM=mon.filter(m=>m.type==="exp").reduce((s,m)=>s+m.amount,0);
   const h=S.health[t]||{}, days=lastNDays(14);
   const scores=days.map(d=>dayScore(d).total);
-  const subsSoon=arr("subs").filter(s=>s.next && s.next>=t && s.next<=addDays(t,7)).sort((a,b)=>a.next.localeCompare(b.next));
+  const subsSoon=arr("subs").filter(s=>s.next && s.next<=addDays(t,31)).sort((a,b)=>a.next.localeCompare(b.next)).slice(0,5);
   const doneWeek=all.filter(x=>x.done && x.date>=addDays(t,-6) && x.date<=t).length;
   const exWeek=arr("money").filter(m=>m.type==="exp" && m.date>=addDays(t,-6) && m.date<=t).reduce((s,m)=>s+m.amount,0);
   const avgScore=Math.round(scores.slice(-7).reduce((a,b)=>a+b,0)/7);
@@ -266,7 +266,8 @@ function vHome(){
     </div>
     <div class="card"><h2>Продуктивность <span class="lbl">счёт дня за 2 недели</span></h2>
       ${lineChart(scores, days.map(d=>String(parseD(d).getDate())), 100)}
-      ${subsSoon.length?`<div class="lbl" style="margin-top:14px">Платежи на неделе</div><div class="list">${subsSoon.map(s=>`<div class="item"><span class="dot" style="background:var(--pink)"></span><span class="t">${esc(s.name)}</span><span class="mute">${dLabel(s.next)}</span><span class="num">${rub(s.price)}</span></div>`).join("")}</div>`:""}
+      <div class="spread" style="margin-top:16px"><div class="lbl">Ближайшие обязательные платежи</div><button class="btn sm" data-click="openPayments">Все платежи</button></div>
+      <div class="list">${subsSoon.length?subsSoon.map(s=>`<div class="item"><span class="dot" style="background:var(--pink)"></span><span class="t">${esc(s.name)}</span><span class="mute" style="${s.next<t?"color:var(--bad)":""}">${s.next<t?"просрочен":dLabel(s.next)}</span><span class="num">${rub(s.price)}</span></div>`).join(""):`<div class="empty">${arr("subs").length?"В ближайший месяц платежей нет.":"Добавьте подписки, кредиты и коммуналку в «Финансы» → «Обязательные платежи»."}</div>`}</div>
     </div>
   </div>
   ${boardHtml()}`;
@@ -506,26 +507,27 @@ function moneyDash(ops, exp, inc, st, subs){
 function paymentsHtml(subs){
   const groups=[["debt","Кредиты и ипотека",s=>isDebt(s)],["sub","Подписки",s=>payKind(s)==="sub"],["rest","Коммуналка и другое",s=>["util","other"].includes(payKind(s))]];
   const row=s=>{ const debt=isDebt(s), hasRest=debt&&typeof s.rest==="number", months=hasRest&&s.price?Math.ceil(s.rest/s.price):null, paid=hasRest&&s.total?Math.min(100,Math.round((1-s.rest/s.total)*100)):null;
-    return `<div class="item" style="flex-wrap:wrap">
+    return `<div class="item payrow" style="flex-wrap:wrap">
       <span class="t">${esc(s.name)} <span class="chip">${PAY_KINDS[payKind(s)]}</span> <span class="chip">${s.period==="year"?"раз в год":"в месяц"}</span>
         ${hasRest?`<div class="mute" style="font-size:13px;margin-top:4px">Остаток ${rub(s.rest)}${months?` · ещё ≈ ${months} ${months%10===1&&months%100!==11?"платёж":(months%10>=2&&months%10<=4&&(months%100<12||months%100>14))?"платежа":"платежей"}`:""}</div>${paid!==null?`<div class="paybar"><b style="width:${paid}%"></b></div><div class="mute" style="font-size:12px">выплачено ${paid}%</div>`:""}`:""}</span>
       <span class="mute">${s.next?dLabel(s.next):""}</span><span class="num">${rub(s.price)}</span>
       <button class="btn sm" data-click="paySub" ${A(s.id)} title="Записать расход и перенести дату">Оплачено</button><button class="icon" aria-label="Удалить" data-click="del" ${A("subs",s.id)}>${ICO.x}</button></div>`; };
   const total=subs.reduce((a,s)=>a+monthlyOf(s),0), debt=subs.filter(isDebt).reduce((a,s)=>a+(typeof s.rest==="number"?s.rest:0),0);
-  return `<form class="card form" data-submit="addSub">
+  return `    <div class="grid g2">
+      <div class="card"><div class="lbl">Все обязательные платежи в месяц</div><div class="big">${rub(total)}</div></div>
+      <div class="card"><div class="lbl">Общий остаток по кредитам</div><div class="big">${debt?rub(debt):"—"}</div></div>
+    </div>
+    ${subs.length?groups.map(([k,n,f])=>{ const g=subs.filter(f); return g.length?`<div class="card"><h2>${n} <span class="mute num">${rub(g.reduce((a,s)=>a+monthlyOf(s),0))} / мес</span></h2><div class="list">${g.map(row).join("")}</div></div>`:""; }).join("")
+      :`<div class="card"><div class="empty" style="padding:0">Платежей пока нет. Добавьте кредит, ипотеку, подписку или коммуналку — Pulse напомнит на «Обзоре» и в календаре, а кнопка «Оплачено» сама запишет расход.</div></div>`}
+    <h2 style="margin:6px 0 -4px">Добавить платёж</h2>
+    <form class="card form" data-submit="addSub">
       <label>Тип<select id="sKind" name="sk" data-change="setPayKindForm">${Object.entries(PAY_KINDS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
       <label>Название<input type="text" id="sName" name="sn" placeholder="Ипотека Сбер, Яндекс Плюс…" maxlength="60"></label>
       <label>Платёж, ₽<input type="text" inputmode="decimal" id="sPrice" name="sp" placeholder="15000" autocomplete="off"></label>
       <label>Период<select id="sPer" name="spd"><option value="month">Каждый месяц</option><option value="year">Раз в год</option></select></label>
       <label>Следующий платёж<input type="date" id="sNext" name="snx" value="${today()}"></label>
       <label id="sRestBox" hidden>Остаток долга, ₽<input type="text" inputmode="decimal" id="sRest" name="sr" placeholder="850000" autocomplete="off"></label>
-      <button class="btn pri">Добавить</button></form>
-    <div class="grid g2">
-      <div class="card"><div class="lbl">Все обязательные платежи в месяц</div><div class="big">${rub(total)}</div></div>
-      <div class="card"><div class="lbl">Общий остаток по кредитам</div><div class="big">${debt?rub(debt):"—"}</div></div>
-    </div>
-    ${subs.length?groups.map(([k,n,f])=>{ const g=subs.filter(f); return g.length?`<div class="card"><h2>${n} <span class="mute num">${rub(g.reduce((a,s)=>a+monthlyOf(s),0))} / мес</span></h2><div class="list">${g.map(row).join("")}</div></div>`:""; }).join("")
-      :`<div class="card"><div class="empty" style="padding:0">Платежей пока нет. Добавьте кредит, ипотеку, подписку или коммуналку — Pulse напомнит на «Обзоре» и в календаре, а кнопка «Оплачено» сама запишет расход.</div></div>`}`;
+      <button class="btn pri">Добавить</button></form>`;
 }
 
 function vMoney(){
@@ -537,23 +539,27 @@ function vMoney(){
   const subs=arr("subs").sort((a,b)=>(a.next||"").localeCompare(b.next||""));
   const subMonth=subs.reduce((s,x)=>s+monthlyOf(x),0);
   const left = st.budget ? st.budget-exp : null;
-  return `<div class="spread"><div><h1>Финансы</h1><div class="sub">${MONTHS[m-1]} ${y}</div></div>
-    <div class="row"><button class="btn sm" data-click="shiftMonth" ${A(-1)} aria-label="Предыдущий месяц">${ICO.left}</button><button class="btn sm" data-click="shiftMonth" ${A(1)} aria-label="Следующий месяц">${ICO.right}</button></div></div>
-  ${(()=>{ const ms=monthsWithMoney(); if(!ms.length) return ""; return `<div class="tabs" role="tablist" aria-label="Месяцы с операциями">${ms.map(([k,n])=>{ const [yy,mm]=k.split("-").map(Number); return `<button class="${k===moneyMonth?"on":""}" data-click="pickMonth" ${A(k)}>${MONTHS[mm-1]}${yy!==new Date().getFullYear()?" "+yy:""}<span class="num">${n}</span></button>`; }).join("")}</div>`; })()}
-  ${!ops.length && monthsWithMoney().length && moneyTab!=="subs" ? `<div class="banner">В этом месяце операций нет. Выберите месяц выше — например, ${(()=>{const [yy,mm]=monthsWithMoney()[0][0].split("-").map(Number);return MONTHS[mm-1];})()}.</div>` : ""}
-  <form class="card" data-submit="addQuick"><div class="lbl" style="margin-bottom:8px">Быстрая запись</div>
-    <div class="compose"><input type="text" id="qText" aria-label="Сумма и на что потрачено" name="q" placeholder="1000р рыба" autocomplete="off" data-input="quickPreview"><input type="date" id="qDate" aria-label="Дата операции" name="qd" value="${today()}" style="max-width:170px"><button class="btn pri">Записать</button></div>
-    <div id="qPrev" class="mute" style="font-size:13px;margin-top:8px"></div></form>
-  ${impHtml()}
-  <div class="hero">
+  const heroHtml = `  <div class="hero">
     <div class="tile a"><span class="corner">${ICO.ruble}</span><div><div class="lbl">Баланс месяца</div><div class="big">${rub(inc-exp)}</div></div><div class="mute">доходы ${rub(inc)}</div></div>
     <div class="tile b"><span class="corner">${ICO.down}</span><div><div class="lbl">Расходы</div><div class="big">${rub(exp)}</div></div><div class="mute">${ops.filter(x=>x.type==="exp").length} операций</div></div>
     <div class="tile"><div class="lbl">Бюджет на месяц</div><input type="number" id="budget" aria-label="Бюджет на месяц, рублей" value="${esc(st.budget||"")}" placeholder="не задан" data-change="setBudget" style="width:100%;font-size:18px"><div class="${left!==null&&left<0?"":"mute"}" style="${left!==null&&left<0?"color:var(--bad)":""}">${left===null?"задайте лимит":left>=0?"осталось "+rub(left):"перерасход "+rub(-left)}</div></div>
-    <div class="tile"><div class="lbl">Обязательные в месяц</div><div class="big">${rub(subMonth)}</div><div class="mute">${subs.length} платеж${subs.length%10===1&&subs.length%100!==11?"":(subs.length%10>=2&&subs.length%10<=4&&(subs.length%100<12||subs.length%100>14))?"а":"ей"}</div></div>
-  </div>
-  <div class="tabs">${[["dash","Аналитика"],["ops","Операции"],["cats","По категориям"],["subs","Обязательные платежи"]].map(([k,n])=>`<button class="${k===moneyTab?"on":""}" data-click="moneyTab" ${A(k)}>${n}</button>`).join("")}</div>
-  ${moneyTab==="dash"?moneyDash(ops, exp, inc, st, subs):""}
+    <button type="button" class="tile tlink" data-click="moneyTab" ${A("subs")} aria-label="Открыть обязательные платежи"><div class="lbl">Обязательные в месяц</div><div class="big">${rub(subMonth)}</div><div class="mute">${subs.length} платеж${subs.length%10===1&&subs.length%100!==11?"":(subs.length%10>=2&&subs.length%10<=4&&(subs.length%100<12||subs.length%100>14))?"а":"ей"} ›</div></button>
+  </div>`;
+  return `<div class="spread"><div><h1>Финансы</h1><div class="sub">${MONTHS[m-1]} ${y}</div></div>
+    <div class="row"><button class="btn sm" data-click="shiftMonth" ${A(-1)} aria-label="Предыдущий месяц">${ICO.left}</button><button class="btn sm" data-click="shiftMonth" ${A(1)} aria-label="Следующий месяц">${ICO.right}</button></div></div>
+  ${(()=>{ const ms=monthsWithMoney(); if(!ms.length) return ""; return `<div class="tabs" role="tablist" aria-label="Месяцы с операциями">${ms.map(([k,n])=>{ const [yy,mm]=k.split("-").map(Number); return `<button class="${k===moneyMonth?"on":""}" data-click="pickMonth" ${A(k)}>${MONTHS[mm-1]}${yy!==new Date().getFullYear()?" "+yy:""}<span class="num">${n}</span></button>`; }).join("")}</div>`; })()}
+  <div class="tabs mtabs" role="tablist" aria-label="Разделы финансов">${[["dash","Аналитика","Аналитика"],["ops","Операции","Операции"],["cats","По категориям","Категории"],["subs","Обязательные платежи","Платежи"]].map(([k,n,sh])=>`<button class="${k===moneyTab?"on":""}" role="tab" aria-selected="${k===moneyTab}" data-click="moneyTab" ${A(k)}><span class="tl-full">${n}</span><span class="tl-short" aria-hidden="true">${sh}</span></button>`).join("")}</div>
+  ${!ops.length && monthsWithMoney().length && moneyTab!=="subs" ? `<div class="banner">В этом месяце операций нет. Выберите месяц выше — например, ${(()=>{const [yy,mm]=monthsWithMoney()[0][0].split("-").map(Number);return MONTHS[mm-1];})()}.</div>` : ""}
+  ${moneyTab==="subs"?"":`<form class="card" data-submit="addQuick"><div class="lbl" style="margin-bottom:8px">Быстрая запись</div>
+    <div class="compose"><input type="text" id="qText" aria-label="Сумма и на что потрачено" name="q" placeholder="1000р рыба" autocomplete="off" data-input="quickPreview"><input type="date" id="qDate" aria-label="Дата операции" name="qd" value="${today()}" style="max-width:170px"><button class="btn pri">Записать</button></div>
+    <div id="qPrev" class="mute" style="font-size:13px;margin-top:8px"></div>
+    <div style="margin-top:10px"><label class="linkbtn" for="stmtIn">Загрузить выписку из банка</label></div>
+    </form>`}
+  <input type="file" id="stmtIn" class="vh" accept=".pdf,.csv,.xlsx,.xls,.txt,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" data-change="stmtPick" aria-label="Файл выписки из банка">
+  ${impHtml()}
+  ${moneyTab==="dash"?`${heroHtml}${moneyDash(ops, exp, inc, st, subs)}`:""}
   ${moneyTab==="cats"?`<div class="card"><div class="row" style="gap:26px;align-items:center">${cats.length?donut(cats.map(([c,v],i)=>[c,v,CAT_COLOR[i%CAT_COLOR.length]]),compact(exp)):""}<div class="bars" style="flex:1;min-width:240px">${cats.length?cats.map(([c,v],i)=>`<div class="bar"><span>${esc(c)}</span><i><b style="width:${v/cmax*100}%;background:${CAT_COLOR[i%CAT_COLOR.length]}"></b></i><span class="num" style="text-align:right">${rub(v)}</span></div>`).join(""):`<div class="empty">В этом месяце расходов нет.</div>`}</div></div></div>`:""}
+  ${moneyTab==="ops"&&!imp?dropHtml():""}
   ${moneyTab==="ops"?`<div class="card"><div class="list">${ops.length?ops.map(x=>`<div class="item"><span class="mute num" style="width:52px">${parseD(x.date).getDate()} ${MONTHS_G[parseD(x.date).getMonth()].slice(0,3)}</span><span class="t">${esc(x.note||x.cat)} <span class="chip">${esc(x.cat)}</span></span><span class="num" style="color:${x.type==="inc"?"var(--good)":"var(--fg)"}">${x.type==="inc"?"+":"−"}${rub(x.amount)}</span><button class="icon" aria-label="Удалить" data-click="del" ${A("money",x.id)}>${ICO.x}</button></div>`).join(""):`<div class="empty">Операций нет. Запишите первую строкой выше, например «5600 дизель».</div>`}</div></div>`:""}
   ${moneyTab==="subs"?paymentsHtml(subs):""}`;
 }
@@ -655,11 +661,16 @@ async function stmtSave(){
   imp = null; render(); toast("Загружено операций: " + list.length);
 }
 function impHtml(){
-  if (!imp) return `<div class="card drop" id="stmtDrop"><div class="spread" style="gap:12px"><div><div class="lbl">Выписка из банка</div>
-      <div class="mute" style="font-size:13px;margin-top:4px">Перетащите файл сюда или выберите его. Подойдёт PDF, CSV или Excel из любого банка. Перед сохранением покажу, что нашлось.</div></div>
-      <label class="btn" for="stmtIn">Загрузить выписку</label></div>
-      <input type="file" id="stmtIn" class="vh" accept=".pdf,.csv,.xlsx,.xls,.txt,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" data-change="stmtPick"></div>`;
+  if (!imp) return "";
   if (imp.busy && !imp.ops.length) return `<div class="card"><div class="lbl">Выписка: ${esc(imp.name)}</div><div class="mute" style="margin-top:6px">Читаю файл…</div></div>`;
+  return impPreview();
+}
+function dropHtml(){
+  return `<div class="card drop" id="stmtDrop"><div class="spread" style="gap:12px"><div><div class="lbl">Выписка из банка</div>
+      <div class="mute" style="font-size:13px;margin-top:4px">Перетащите файл сюда или выберите его. Подойдёт PDF, CSV или Excel из любого банка. Перед сохранением покажу, что нашлось.</div></div>
+      <label class="btn" for="stmtIn">Загрузить выписку</label></div></div>`;
+}
+function impPreview(){
   if (imp.error && !imp.ops.length) return `<div class="card"><div class="spread"><div class="lbl">Выписка: ${esc(imp.name)}</div><button class="btn sm" data-click="stmtCancel">Закрыть</button></div><div class="banner" style="margin-top:10px">${esc(imp.error)}</div></div>`;
   const first = imp.ops[0].date, last = imp.ops[imp.ops.length - 1].date, dups = imp.ops.filter(o => o.dup).length;
   const cats = Object.keys(CATS_ALL);
@@ -811,6 +822,7 @@ const ACTIONS = {
   taskTab: k => { taskTab = k; render(); },
   healthTab: k => { healthTab = k; render(); },
   moneyTab: k => { moneyTab = k; render(); },
+  openPayments: () => { moneyTab = "subs"; go("money"); },
   weekShift: n => { weekStart = addDays(weekStart, n); render(); },
   weekToday: () => { const d = new Date(); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); weekStart = ymd(d); render(); },
   setHNum: (field, el) => { const v = field === "steps" ? parseInt(el.value, 10) : parseFloat(String(el.value).replace(",", ".")); setH(field, v); },
