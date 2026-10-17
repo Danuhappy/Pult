@@ -695,6 +695,8 @@ function habitStreak(x){
 function habitRate(x,days=30){ let due=0,done=0; for(let i=0;i<days;i++){ const d=addDays(today(),-i); if(x.start && d<x.start) break; if(habitDue(x,d)){ due++; if((x.log||{})[d]) done++; } } return due?Math.round(done/due*100):0; }
 const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
 function toggleHabit(id,d){ const x=S.habits[id]; if(!x) return; d=(typeof d==="string"&&DATE_RE.test(d))?d:today(); const log={}; Object.keys(x.log||{}).forEach(k=>{ if(DATE_RE.test(k)) log[k]=true; }); if(log[d]) delete log[d]; else log[d]=true; save("habits",id,{...x,log}); }
+function habitDay(id,i){ const x=S.habits[id]; if(!x||!Number.isInteger(i)||i<0||i>6) return; const cur=(x.days&&x.days.length?x.days:[0,1,2,3,4,5,6]).filter(d=>Number.isInteger(d)&&d>=0&&d<=6);
+  const days=cur.includes(i)?cur.filter(d=>d!==i):[...cur,i]; if(!days.length){ toast("Хотя бы один день должен остаться"); return; } save("habits",id,{...x,days}); }
 function daysText(days){ if(!days||!days.length||days.length===7) return "каждый день"; const k=[...days].sort((a,b)=>DAYS_ORDER.indexOf(a)-DAYS_ORDER.indexOf(b)); if(k.join()==="1,2,3,4,5") return "по будням"; if(k.join()==="6,0") return "по выходным"; return k.map(i=>WD[i]).join(", "); }
 function addHabit(f){
   const name=f.hn.value.trim(); if(!name) return need(f.hn,"Напишите название привычки");
@@ -704,15 +706,19 @@ function addHabit(f){
   f.hn.value=""; toast("Привычка добавлена"); return false;
 }
 function habitStrip(){
-  const t=today(), hs=arr("habits").filter(x=>habitDue(x,t)).sort((a,b)=>(a.time||"99").localeCompare(b.time||"99"));
-  if(!hs.length) return "";
-  return `<div><div class="lbl" style="margin-bottom:8px">Привычки сегодня · ${hs.filter(x=>(x.log||{})[t]).length} из ${hs.length}</div><div class="hstrip">${hs.map(x=>`<button class="hpill ${(x.log||{})[t]?"on":""}" aria-pressed="${!!(x.log||{})[t]}" data-click="toggleHabit" ${A(x.id)}><b></b>${esc(x.name)}${x.time?` <span class="num mute">${esc(x.time)}</span>`:""}</button>`).join("")}</div></div>`;
+  const t=today(), all=arr("habits").sort((a,b)=>(a.time||"99").localeCompare(b.time||"99"));
+  if(!all.length) return `<div class="card"><div class="lbl">Привычки сегодня</div><div class="empty" style="padding:6px 0 0">Привычек пока нет. <button class="linkbtn" data-click="go" ${A("habits")}>Добавить привычку</button></div></div>`;
+  const due=all.filter(x=>habitDue(x,t)), rest=all.filter(x=>!habitDue(x,t)), list=[...due,...rest];
+  const pill=x=>{ const on=!!(x.log||{})[t], off=!habitDue(x,t);
+    return `<button class="hpill ${on?"on":""} ${off?"rest":""}" aria-pressed="${on}" data-click="toggleHabit" ${A(x.id)} ${off?'title="Сегодня по плану отдых, но можно отметить"':""}><b></b>${esc(x.name)}${x.time?` <span class="num mute">${esc(x.time)}</span>`:""}${off?` <span class="mute" style="font-size:12px">отдых</span>`:""}</button>`; };
+  const head = due.length ? `Привычки сегодня · ${due.filter(x=>(x.log||{})[t]).length} из ${due.length}` : `Привычки · сегодня по плану отдых, но отметить можно`;
+  return `<div><div class="lbl" style="margin-bottom:8px">${head}</div><div class="hstrip">${list.map(pill).join("")}</div></div>`;
 }
 function vHabits(){
   const t=today(), hs=arr("habits").sort((a,b)=>(a.time||"99").localeCompare(b.time||"99")||(a.created||0)-(b.created||0));
   const dueToday=hs.filter(x=>habitDue(x,t)), doneToday=dueToday.filter(x=>(x.log||{})[t]).length;
   const last7=Array.from({length:7},(_,i)=>addDays(t,i-6));
-  return `<div><h1>Привычки</h1><div class="sub">${dueToday.length?`Сегодня ${doneToday} из ${dueToday.length}`:"Добавьте первую привычку"}</div></div>
+  return `<div><h1>Привычки</h1><div class="sub">${dueToday.length?`Сегодня ${doneToday} из ${dueToday.length}`:hs.length?`Сегодня по плану отдых · привычек: ${hs.length}`:"Добавьте первую привычку"}</div></div>
   <form class="card" data-submit="addHabit">
     <div class="form hform">
       <label>Привычка<input type="text" id="hName" name="hn" placeholder="Зарядка 10 минут" autocomplete="off"></label>
@@ -725,10 +731,11 @@ function vHabits(){
   </form>
   ${hs.length?`<div class="habs">${hs.map(x=>{ const due=habitDue(x,t), on=!!(x.log||{})[t], st=habitStreak(x);
     return `<div class="card hab">
-      <div class="hab-top"><button class="hab-check ${on?"on":""}" ${due?"":"disabled"} aria-pressed="${on}" aria-label="Отметить: ${esc(x.name)}" data-click="toggleHabit" ${A(x.id)}>${on?ICO.check:""}</button>
-        <div style="flex:1;min-width:0"><div class="hab-name">${esc(x.name)}</div><div class="mute" style="font-size:13px">${daysText(x.days)}${x.time?" · "+esc(x.time):""}${due?"":" · сегодня выходной"}</div></div>
+      <div class="hab-top"><button class="hab-check ${on?"on":""} ${due?"":"rest"}" aria-pressed="${on}" aria-label="Отметить: ${esc(x.name)}" data-click="toggleHabit" ${A(x.id)}>${on?ICO.check:""}</button>
+        <div style="flex:1;min-width:0"><div class="hab-name">${esc(x.name)}</div><div class="mute" style="font-size:13px">${daysText(x.days)}${x.time?" · "+esc(x.time):""}${due?"":" · сегодня по плану отдых, но отметить можно"}</div></div>
         <button class="icon" aria-label="Удалить" data-click="del" ${A("habits",x.id)}>${ICO.x}</button></div>
-      <div class="week7">${last7.map(d=>{ const dd=habitDue(x,d), dn=(x.log||{})[d]; return `<div><i class="${dn?"on":dd?"":"off"}" ${dd&&d!==t?`role="button" tabindex="0" aria-pressed="${!!dn}" aria-label="${esc(x.name)}, ${dLabel(d)}" data-click="toggleHabit" ${A(x.id,d)}`:""}></i>${WD[parseD(d).getDay()]}</div>`; }).join("")}</div>
+      <div class="week7">${last7.map(d=>{ const dd=habitDue(x,d), dn=(x.log||{})[d]; return `<div><i class="${dn?"on":dd?"":"off"}" role="button" tabindex="0" aria-pressed="${!!dn}" aria-label="${esc(x.name)}, ${dLabel(d)}" data-click="toggleHabit" ${A(x.id,d)}></i>${WD[parseD(d).getDay()]}</div>`; }).join("")}</div>
+      <div class="hdays" aria-label="Дни привычки">${DAYS_ORDER.map(i=>{ const on=(x.days&&x.days.length?x.days:[0,1,2,3,4,5,6]).includes(i); return `<button type="button" class="hday ${on?"on":""}" aria-pressed="${on}" data-click="habitDay" ${A(x.id,i)} aria-label="${WD[i]}: ${on?"по плану":"отдых"}">${WD[i]}</button>`; }).join("")}</div>
       <div class="spread"><span class="chip">${st?`серия ${st} ${st%10===1&&st%100!==11?"день":(st%10>=2&&st%10<=4&&(st%100<12||st%100>14))?"дня":"дней"}`:"серия не начата"}</span><span class="mute" style="font-size:13px">за 30 дней ${habitRate(x)}%</span></div>
     </div>`; }).join("")}</div>`:`<div class="card"><div class="empty" style="padding:0">Привычек пока нет. Например: зарядка, вода утром, 20 минут чтения, без телефона после 23:00.</div></div>`}`;
 }
@@ -987,7 +994,7 @@ const ACTIONS = {
   setPayKindForm, setNoteGroup, noteSearch, toggleSticker, togglePin, noteFilterGroup, noteFilterSticker,
   stmtPick, stmtToggle, stmtAll, stmtCat, stmtCancel, stmtSave,
   toggleEdit, resetLayout, blkHide, blkShow, blkWidth, blkMove, navHide, navShow,
-  setTheme,
+  setTheme, habitDay,
   homeTab: k => { homeTab = k; render(); },
   taskTab: k => { taskTab = k; render(); },
   healthTab: k => { healthTab = k; render(); },

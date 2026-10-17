@@ -91,6 +91,20 @@ process.on("unhandledRejection", async e => { console.log("ERR", e.message.split
   check('Повторное нажатие снимает отметку', !rows.find(r => r.col === 'habits').data.log[td]);
   await page.click('[data-v="home"]'); await page.click('.hpill'); await page.waitForTimeout(150);
   check('Отметка с «Обзора» тоже ставится на сегодня', rows.find(r => r.col === 'habits').data.log[td] === true);
+  // день отдыха: привычка не по плану сегодня всё равно видна и отмечается
+  const wd = await page.evaluate(() => new Date().getDay());
+  await page.click('[data-v="habits"]'); await page.click(`.hday[data-args='["${rows.find(r => r.col === 'habits').id}",${wd}]']`); await page.waitForTimeout(150);
+  const hb = () => rows.find(r => r.col === 'habits').data;
+  check('У привычки можно поменять дни недели', !hb().days.includes(wd) && hb().days.length === 6);
+  check('В день отдыха кнопка отметки на странице привычек не заблокирована', !(await page.$eval('.hab-check', e => e.disabled)) && (await page.textContent('#view')).includes('по плану отдых'));
+  await page.click('[data-v="home"]'); await page.waitForTimeout(100);
+  check('В день отдыха привычка всё равно видна на «Обзоре»', await page.isVisible('.hpill.rest'));
+  const before2 = !!hb().log[td]; await page.click('.hpill'); await page.waitForTimeout(150);
+  check('И её можно отметить на «Обзоре»', !!hb().log[td] === !before2);
+  await page.click('.hpill'); await page.waitForTimeout(150);
+  await page.click('[data-v="habits"]'); await page.click(`.hday[data-args='["${rows.find(r => r.col === 'habits').id}",${wd}]']`); await page.waitForTimeout(150);
+  check('День возвращается обратно', hb().days.includes(wd));
+  await page.click('[data-v="home"]'); await page.waitForTimeout(100);
   await page.click('[data-v="health"]'); await page.click('[data-click="water"] >> nth=1'); await page.click('[data-click="mood"] >> nth=3');
   await page.fill('#hSleep', '7,5'); await page.press('#hSleep', 'Tab'); await page.waitForTimeout(200);
   const h = rows.find(r => r.col === 'health'); check('Здоровье: вода, настроение, сон сохраняются', h && h.data.water === 1 && h.data.mood === 4 && h.data.sleep === 7.5);

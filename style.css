@@ -452,3 +452,11 @@ button.tile.tlink:hover{border-color:rgba(var(--ov-c),.25)}
 .thm{display:flex;flex-direction:column;align-items:center;gap:7px;padding:10px 6px;border-radius:16px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;color:var(--fg);font-size:13px}
 .thm i{width:46px;height:46px;border-radius:50%;display:block;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25),0 6px 16px -6px rgba(0,0,0,.6)}
 .thm.on{border-color:var(--accent-text);box-shadow:0 0 0 2px var(--accent-text) inset}
+/* привычки: день отдыха и выбор дней */
+.hpill.rest{opacity:.62;border-style:dashed}
+.hpill.rest.on{opacity:1}
+.hab-check.rest{border-style:dashed}
+.week7 i[role=button]{cursor:pointer}
+.hdays{display:flex;gap:5px;flex-wrap:wrap}
+.hday{border:1px solid var(--line);background:none;color:var(--mute);border-radius:9px;padding:4px 0;width:36px;font-size:12px;cursor:pointer}
+.hday.on{background:rgba(var(--lime-c),.16);border-color:rgba(var(--lime-c),.55);color:var(--fg)}
