@@ -462,3 +462,20 @@ button.tile.tlink:hover{border-color:rgba(var(--ov-c),.25)}
 .hday.on{background:rgba(var(--lime-c),.16);border-color:rgba(var(--lime-c),.55);color:var(--fg)}
 .banner.ok{background:rgba(var(--lime-c),.08);border-color:rgba(var(--lime-c),.35)}
 .pushcard .btn.pri{flex:none}
+/* изменение операции */
+.oprow .opopen{flex:1;min-width:0;display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;text-align:left;cursor:pointer;color:inherit;font:inherit}
+.oprow .opopen:hover .t{text-decoration:underline;text-decoration-color:var(--line)}
+.opedit{border-top:1px solid var(--line);padding:12px 0;background:rgba(var(--lime-c),.04);border-radius:12px}
+.opform{display:grid;grid-template-columns:110px 130px 160px minmax(0,1fr);gap:10px}
+.opform .opdesc{grid-column:1/-1}
+.opform input,.opform select{width:100%}
+.oplearn{display:flex;gap:8px;align-items:flex-start;margin-top:10px;font-size:13px;color:var(--mute)}
+.oplearn input{margin-top:2px;accent-color:var(--lime)}
+@media (max-width:620px){.opform{grid-template-columns:1fr 1fr}}
+/* заметки на телефоне: либо список, либо открытая заметка */
+.nback{display:none;margin-bottom:10px}
+@media (max-width:900px){
+  .notes.open > .nlist{display:none}
+  .notes:not(.open) > .nedit{display:none}
+  .notes.open .nback{display:inline-flex}
+}

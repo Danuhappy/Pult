@@ -136,6 +136,7 @@ const VIEWS = [
  ["home","Обзор","home"],["tasks","Задачи","task"],["habits","Привычки","habit"],["cal","Календарь","cal"],["health","Здоровье","heart"],
  ["money","Финансы","money"],["notes","Заметки","note"]
 ];
+let noteOpen = false, opEdit = null; // открытая заметка (телефон) и изменяемая операция
 let view = (location.hash||"").slice(1);
 if (!VIEWS.some(v=>v[0]===view)) view = "home";
 function navCount(k){
@@ -152,7 +153,7 @@ function drawNav(){
   nav.innerHTML = keys.map((k, n) => { const [, t, i] = byK[k]; return `<button data-v="${k}" class="${k===view?"on":""}" ${k===view?'aria-current="page"':""} style="--d:${(n % 3) * -0.07}s"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${IC[i]}</svg><span class="nl">${t}</span>${editMode?`<span class="jx" role="button" tabindex="0" data-click="navHide" ${A(k)} aria-label="Скрыть вкладку «${t}»">−</span>`:navCount(k)}</button>`; }).join("");
 }
 $("#nav").addEventListener("click", e=>{ if (e.target.closest("[data-click]")) return; const b=e.target.closest("button"); if(!b) return; go(b.dataset.v); });
-function go(v){ view=v; try{history.replaceState(null,"","#"+v);}catch(_){} drawNav(); render(); window.scrollTo(0,0); }
+function go(v){ view=v; if (v==="notes") noteOpen=false; if (v!=="money") opEdit=null; try{history.replaceState(null,"","#"+v);}catch(_){} drawNav(); render(); window.scrollTo(0,0); }
 
 /* ---------- render with focus preservation ---------- */
 function render(){
@@ -389,6 +390,31 @@ const CATS_ALL = Object.fromEntries([...Object.keys(CATS), "Другое"].map(k
 const fmtD = d => { const x = parseD(d); return x.getDate() + " " + MONTHS_G[x.getMonth()] + " " + x.getFullYear(); };
 const INCOME_W = ["зарплат","доход","поступлен","аванс","получил","вернули","кэшбэк","кешбэк"];
 const CAT_COLOR = ["var(--c1)","var(--c2)","var(--c3)","var(--c4)","var(--c5)","var(--c6)","var(--c7)","var(--c8)","var(--c9)"];
+/* запоминание категорий: поменяли категорию у «РусАлка» — дальше такие траты сами попадают туда же */
+const CATKEY_STOP = /^(оплата|покупка|списание|платеж|платёж|в|во|на|от|для|по|товаров|и|услуг|ип|ооо|ао|пао|магазин|shop|store)$/;
+// у сетей вроде «Яндекс» много разных сервисов — для них берём два слова («яндекс плюс», «яндекс такси»)
+const CATKEY_WIDE = /^(перевод|зачисление|возврат|снятие|пополнение|комиссия|сбп|яндекс|yandex|сбер|sber|сбербанк|тинькофф|tinkoff|мтс|mts|альфа|втб|ozon|озон)$/;
+function catKey(s){
+  const w = String(s || "").toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я\s]+/g, " ").split(/\s+/).filter(x => x && x.length > 1 && !CATKEY_STOP.test(x));
+  if (!w.length) return null;
+  const k = (CATKEY_WIDE.test(w[0]) ? w.slice(0, 2) : w.slice(0, 1)).join(" ").slice(0, 40);
+  return k.length >= 3 ? k : null;
+}
+const catRules = () => { const r = (S.meta.catrules || {}).r; return r && typeof r === "object" ? r : {}; };
+function ruleCat(desc){
+  const rules = catRules(), k = catKey(desc); if (!k) return null;
+  if (rules[k] && CATS_ALL[rules[k]]) return rules[k];
+  const norm = " " + String(desc || "").toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я\s]+/g, " ").replace(/\s+/g, " ") + " ";
+  let best = null; for (const [rk, c] of Object.entries(rules)) if (rk.length >= 4 && CATS_ALL[c] && norm.includes(" " + rk + " ") && (!best || rk.length > best[0].length)) best = [rk, c];
+  return best ? best[1] : null;
+}
+function learnCats(pairs){ // [[описание, категория], ...]
+  const r = { ...catRules() }; let n = 0;
+  for (const [d, c] of pairs) { const k = catKey(d); if (k && CATS_ALL[c] && r[k] !== c) { delete r[k]; r[k] = c; n++; } }
+  if (!n) return;
+  const keys = Object.keys(r); while (keys.length > 600) delete r[keys.shift()];
+  save("meta", "catrules", { r });
+}
 function guessCat(s){ s=s.toLowerCase(); for (const [c,ws] of Object.entries(CATS)) if (ws.some(w=>s.includes(w))) return c; return "Другое"; }
 function parseQuick(text){
   const s=text.trim().replace(/(\d)\s+(?=\d{3}(?!\d))/g,"$1"); if(!s) return null;
@@ -398,7 +424,7 @@ function parseQuick(text){
   if (m[1]) amount*=1000;
   const note=s.replace(m[0],"").replace(/^\s*(рублей|руб|р|₽)\.?(?=\s|$)/i,"").replace(/^[\s,.-]+|[\s,.-]+$/g,"");
   const isInc = s.startsWith("+") || INCOME_W.some(w=>s.toLowerCase().includes(w));
-  return {type:isInc?"inc":"exp", amount, note:note||"", cat:isInc?"Доход":guessCat(note)};
+  return {type:isInc?"inc":"exp", amount, note:note||"", cat:isInc?"Доход":(ruleCat(note)||guessCat(note))};
 }
 function quickPreview(v){ if(v && v.value!==undefined) v=v.value; const p=parseQuick(v), el=$("#qPrev"); if(!el) return; el.innerHTML = p?`${p.type==="inc"?'<span class="chip good">доход</span>':'<span class="chip">расход</span>'} <b class="num">${rub(p.amount)}</b> · ${esc(p.cat)}${p.note?" · "+esc(p.note):""}`:'Пример: <span class="num">1000р рыба</span>, <span class="num">5600 дизель</span>, <span class="num">+80000 зарплата</span>'; }
 function addQuick(f){ const p=parseQuick(f.q.value); if(!p) return need(f.q,"Начните с суммы, например: 1000 продукты");
@@ -558,10 +584,54 @@ function vMoney(){
   ${moneyTab==="dash"?blocksHtml("money", Object.assign({ tiles: heroHtml }, moneyDash(ops, exp, inc, st, subs))):""}
   ${moneyTab==="cats"?`<div class="card"><div class="row" style="gap:26px;align-items:center">${cats.length?donut(cats.map(([c,v],i)=>[c,v,CAT_COLOR[i%CAT_COLOR.length]]),compact(exp)):""}<div class="bars" style="flex:1;min-width:240px">${cats.length?cats.map(([c,v],i)=>`<div class="bar"><span>${esc(c)}</span><i><b style="width:${v/cmax*100}%;background:${CAT_COLOR[i%CAT_COLOR.length]}"></b></i><span class="num" style="text-align:right">${rub(v)}</span></div>`).join(""):`<div class="empty">В этом месяце расходов нет.</div>`}</div></div></div>`:""}
   ${moneyTab==="ops"&&!imp?dropHtml():""}
-  ${moneyTab==="ops"?`<div class="card"><div class="list">${ops.length?ops.map(x=>`<div class="item"><span class="mute num" style="width:52px">${parseD(x.date).getDate()} ${MONTHS_G[parseD(x.date).getMonth()].slice(0,3)}</span><span class="t">${esc(x.note||x.cat)} <span class="chip">${esc(x.cat)}</span></span><span class="num" style="color:${x.type==="inc"?"var(--good)":"var(--fg)"}">${x.type==="inc"?"+":"−"}${rub(x.amount)}</span><button class="icon" aria-label="Удалить" data-click="del" ${A("money",x.id)}>${ICO.x}</button></div>`).join(""):`<div class="empty">Операций нет. Запишите первую строкой выше, например «5600 дизель».</div>`}</div></div>`:""}
+  ${moneyTab==="ops"?`<div class="card"><div class="list">${ops.length?ops.map(x=>x.id===opEdit?opEditHtml(x):`<div class="item oprow"><button type="button" class="opopen" data-click="opOpen" ${A(x.id)} aria-label="Изменить операцию: ${esc(x.note||x.cat)}"><span class="mute num" style="width:52px;flex:none">${parseD(x.date).getDate()} ${MONTHS_G[parseD(x.date).getMonth()].slice(0,3)}</span><span class="t">${esc(x.note||x.cat)} <span class="chip">${esc(x.cat)}</span></span><span class="num" style="color:${x.type==="inc"?"var(--good)":"var(--fg)"};flex:none">${x.type==="inc"?"+":"−"}${rub(x.amount)}</span></button><button class="icon" aria-label="Удалить" data-click="del" ${A("money",x.id)}>${ICO.x}</button></div>`).join(""):`<div class="empty">Операций нет. Запишите первую строкой выше, например «5600 дизель».</div>`}</div></div>`:""}
   ${moneyTab==="subs"?paymentsHtml(subs):""}`;
 }
 
+
+/* ---------- изменение операции ---------- */
+function opOpen(id){ opEdit = S.money[id] ? id : null; render(); setTimeout(() => { const f = $("#opAmt"); if (f) f.focus(); }, 0); }
+function opCancel(){ opEdit = null; render(); }
+function similarOps(x, cat){ const k = catKey(x.note); return k ? arr("money").filter(m => m.id !== x.id && m.type === "exp" && m.cat !== cat && catKey(m.note) === k) : []; }
+function opEditHtml(x){
+  const cats = [...Object.keys(CATS_ALL), "Доход"], k = catKey(x.note);
+  return `<form class="opedit" data-submit="opSave" ${A(x.id)} aria-label="Изменение операции">
+    <div class="form opform">
+      <label>Тип<select name="t"><option value="exp" ${x.type==="exp"?"selected":""}>Расход</option><option value="inc" ${x.type==="inc"?"selected":""}>Доход</option></select></label>
+      <label>Сумма, ₽<input type="text" inputmode="decimal" id="opAmt" name="a" value="${esc(String(x.amount).replace(".", ","))}" autocomplete="off"></label>
+      <label>Дата<input type="date" name="d" value="${esc(x.date)}"></label>
+      <label>Категория<select name="c">${cats.map(c=>`<option ${c===x.cat?"selected":""}>${esc(c)}</option>`).join("")}</select></label>
+      <label class="opdesc">Описание<input type="text" name="n" value="${esc(x.note||"")}" maxlength="140" autocomplete="off"></label>
+    </div>
+    ${k?`<label class="oplearn"><input type="checkbox" name="l" checked> Запомнить: «${esc(k)}» — всегда эта категория, и поменять у таких же операций</label>`:""}
+    <div class="row" style="gap:8px;justify-content:flex-end;margin-top:10px"><button type="button" class="btn" data-click="opCancel">Отмена</button><button class="btn pri">Сохранить</button></div>
+  </form>`;
+}
+async function opSave(f, id){
+  const x = S.money[id]; if (!x) { opCancel(); return false; }
+  const amount = numIn(f.a.value), type = f.t.value === "inc" ? "inc" : "exp", date = f.d.value, note = f.n.value.trim().slice(0, 140);
+  let cat = f.c.value; if (!(CATS_ALL[cat] || cat === "Доход")) cat = "Другое";
+  if (!(amount > 0 && amount < 1e9)) return need(f.a, "Введите сумму больше нуля");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return need(f.d, "Выберите дату");
+  if (type === "exp" && cat === "Доход") cat = ruleCat(note) || guessCat(note);
+  if (type === "inc") cat = cat === "Доход" || !CATS_ALL[cat] ? "Доход" : cat;
+  const catChanged = cat !== x.cat, learn = f.l && f.l.checked && type === "exp" && catChanged;
+  const upd = { ...x, type, amount: Math.round(amount * 100) / 100, date, note, cat }; delete upd.id;
+  save("money", id, upd);
+  let n = 0;
+  if (learn) {
+    learnCats([[note, cat]]);
+    const sim = similarOps({ ...upd, id }, cat);
+    if (sim.length) {
+      const rows = sim.map(m => { const d = { ...m, cat }; delete d.id; S.money[m.id] = d; return { col: "money", id: m.id, data: d }; });
+      try { for (let i = 0; i < rows.length; i += 500) await api("items?on_conflict=user_id,col,id", { method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: rows.slice(i, i + 500) }); n = rows.length; }
+      catch (e) { handleErr(e); }
+    }
+  }
+  opEdit = null; render();
+  toast(learn ? (n ? `Сохранено. Запомнил категорию и поменял ещё у ${n} операций` : "Сохранено. Категорию запомнил") : "Сохранено");
+  return false;
+}
 
 /* ---------- загрузка банковской выписки ---------- */
 // Файл разбирается прямо в браузере (bank.js + pdf.js из vendor/), на сервер уходят только операции.
@@ -573,6 +643,7 @@ const BANK_CAT = [[/дом и ремонт|для дома|строймат/i,"�
   [/маркетплейс/i,"Маркетплейсы"],[/наличн|банкомат/i,"Наличные"],[/подписк|цифров/i,"Подписки"],[/перевод/i,"Переводы"]];
 function catFor(o){
   if (o.type === "inc") return "Доход";
+  const learned = ruleCat(o.desc); if (learned) return learned;
   const bc = (BANK_CAT.find(([re]) => o.bankCat && re.test(o.bankCat)) || [])[1];
   if (bc) return bc;
   const g = guessCat(o.desc || ""); if (g !== "Другое") return g;
@@ -636,7 +707,12 @@ function impSumHtml(){ const t = impTotals(); return `Выбрано <b class="n
 function drawImpSum(){ const el = $("#impSum"), b = $("#impSave"); if (el) el.innerHTML = impSumHtml(); if (b) { const n = impTotals().n; b.disabled = !n; b.textContent = n ? "Загрузить " + n : "Ничего не выбрано"; } }
 function stmtToggle(i, el){ if (imp && imp.ops[i]) { imp.ops[i].on = !!el.checked; const r = el.closest(".improw"); if (r) r.classList.toggle("off", !el.checked); drawImpSum(); } }
 function stmtAll(on){ if (!imp) return; imp.ops.forEach(o => o.on = on && !o.dup ? true : on ? o.on : false); render(); }
-function stmtCat(i, el){ if (imp && imp.ops[i] && Object.prototype.hasOwnProperty.call(CATS_ALL, el.value)) imp.ops[i].cat = el.value; }
+function stmtCat(i, el){
+  if (!imp || !imp.ops[i] || !Object.prototype.hasOwnProperty.call(CATS_ALL, el.value)) return;
+  const o = imp.ops[i], k = catKey(o.desc); o.cat = el.value; o.learn = true;
+  let n = 0; if (k) imp.ops.forEach((x, j) => { if (j !== i && x.type === "exp" && catKey(x.desc) === k && x.cat !== el.value) { x.cat = el.value; n++; } });
+  if (n) { render(); toast(`Ещё ${n} таких же операций → «${el.value}»`); }
+}
 function stmtCancel(){ imp = null; render(); }
 async function stmtSave(){
   if (!imp || imp.busy) return;
@@ -645,6 +721,7 @@ async function stmtSave(){
   const now = Date.now();
   const rows = list.map((o, i) => ({ col: "money", id: o.key, data: { type: o.type, amount: o.amount, cat: o.cat, note: o.desc, date: o.date, created: now + i, src: "bank" } }));
   imp.busy = true; drawImpSum();
+  learnCats(list.filter(o => o.learn && o.type === "exp").map(o => [o.desc, o.cat]));
   rows.forEach(r => S.money[r.id] = r.data);
   try {
     for (let i = 0; i < rows.length; i += 500)
@@ -751,9 +828,9 @@ const noteGroups = () => [...new Set(arr("notes").map(n=>(n.group||"").trim()).f
 const cleanStickers = v => Array.isArray(v) ? v.filter(k=>STK[k]).slice(0,10) : [];
 function noteData(id){ const n=S.notes[id]||{}; return { title:n.title||"", text:n.text||"", group:(n.group||"").slice(0,30), stickers:cleanStickers(n.stickers), pinned:!!n.pinned, updated:n.updated||Date.now() }; }
 function saveNote(id, patch){ save("notes", id, { ...noteData(id), ...patch, updated: Date.now() }); }
-function newNote(){ const id=uid(); curNote=id; save("notes",id,{title:"",text:"",group: noteGroup || "",stickers: noteSticker ? [noteSticker] : [],pinned:false,updated:Date.now()}); setTimeout(()=>{const e=$("#noteTitle"); e&&e.focus();},0); }
+function newNote(){ const id=uid(); curNote=id; noteOpen=true; save("notes",id,{title:"",text:"",group: noteGroup || "",stickers: noteSticker ? [noteSticker] : [],pinned:false,updated:Date.now()}); setTimeout(()=>{const e=$("#noteTitle"); e&&e.focus();},0); }
 function noteInput(){ clearTimeout(noteTimer); noteTimer=setTimeout(()=>{ if(!curNote || !S.notes[curNote]) return; saveNote(curNote, {title:$("#noteTitle").value.slice(0,200), text:$("#noteText").value.slice(0,12000)}); drawNoteList(); },700); }
-function pickNote(id){ curNote=id; render(); }
+function pickNote(id){ curNote=id; noteOpen=true; render(); if (window.innerWidth <= 900) { const e=$(".notes"); if (e) e.scrollIntoView({block:"start"}); } }
 function setNoteGroup(el){ if(!curNote) return; saveNote(curNote, {group: String(el.value||"").trim().slice(0,30)}); }
 function toggleSticker(k){ if(!curNote || !STK[k]) return; const st=noteData(curNote).stickers; saveNote(curNote, {stickers: st.includes(k) ? st.filter(x=>x!==k) : [...st, k]}); }
 function togglePin(){ if(!curNote) return; saveNote(curNote, {pinned: !noteData(curNote).pinned}); }
@@ -789,10 +866,10 @@ function vNotes(){
     ${groups.length&&noGroup?`<button class="gchip ${noteGroup===""?"on":""}" data-click="noteFilterGroup" ${A("")}>Без группы <span class="num">${noGroup}</span></button>`:""}
   </div>
   ${usedSt.length?`<div class="row" style="gap:6px" aria-label="Фильтр по стикерам">${usedSt.map(([k,e,nm])=>`<button class="stk ${noteSticker===k?"on":""}" data-click="noteFilterSticker" ${A(k)} aria-pressed="${noteSticker===k}" title="${esc(nm)}">${e} <span>${esc(nm)}</span></button>`).join("")}</div>`:""}
-  <div class="notes"><div class="card nlist">
+  <div class="notes ${noteOpen&&n?"open":""}"><div class="card nlist">
       <input type="text" id="noteSearch" aria-label="Поиск по заметкам" placeholder="Поиск" value="${esc(noteQuery)}" data-input="noteSearch" autocomplete="off" style="width:100%;margin-bottom:10px">
       <div id="noteItems">${noteListHtml()}</div></div>
-   <div class="card">${n?`<div class="spread" style="margin-bottom:10px;flex-wrap:nowrap"><input type="text" id="noteTitle" aria-label="Заголовок заметки" value="${esc(n.title)}" placeholder="Заголовок" data-input="noteInput" maxlength="200" style="flex:1;font-size:18px;font-weight:600">
+   <div class="card nedit">${n?`<button type="button" class="btn sm nback" data-click="noteBack">← Все заметки</button><div class="spread" style="margin-bottom:10px;flex-wrap:nowrap"><input type="text" id="noteTitle" aria-label="Заголовок заметки" value="${esc(n.title)}" placeholder="Заголовок" data-input="noteInput" maxlength="200" style="flex:1;font-size:18px;font-weight:600">
        <button class="btn sm pinbtn ${n.pinned?"on":""}" data-click="togglePin" aria-pressed="${n.pinned}" title="${n.pinned?"Открепить":"Закрепить сверху"}">${ICO.pin}<span>${n.pinned?"Закреплено":"Закрепить"}</span></button></div>
      <div class="nmeta">
        <label class="lbl" for="noteGroupIn">Группа</label>
@@ -1062,7 +1139,7 @@ const ACTIONS = {
   setPayKindForm, setNoteGroup, noteSearch, toggleSticker, togglePin, noteFilterGroup, noteFilterSticker,
   stmtPick, stmtToggle, stmtAll, stmtCat, stmtCancel, stmtSave,
   toggleEdit, resetLayout, blkHide, blkShow, blkWidth, blkMove, navHide, navShow,
-  setTheme, habitDay, pushEnable, pushDisable, pushTest: () => pushTest(false),
+  setTheme, habitDay, opOpen, opCancel, opSave: (f, id) => opSave(f, id), noteBack: () => { noteOpen = false; render(); }, pushEnable, pushDisable, pushTest: () => pushTest(false),
   homeTab: k => { homeTab = k; render(); },
   taskTab: k => { taskTab = k; render(); },
   healthTab: k => { healthTab = k; render(); },
@@ -1180,7 +1257,7 @@ async function signOut(){
   authMode = "login"; authMsg = "Вы вышли из кабинета."; drawAuth();
 }
 function wipeUi(){
-  COLS.forEach(c => S[c] = {}); curNote = null; noteGroup = null; noteSticker = null; noteQuery = ""; moneyPicked = false; moneyMonth = today().slice(0,7); moneyTab = "dash"; imp = null; editMode = false; document.body.classList.remove("editing-ui");
+  COLS.forEach(c => S[c] = {}); curNote = null; noteGroup = null; noteSticker = null; noteQuery = ""; moneyPicked = false; moneyMonth = today().slice(0,7); moneyTab = "dash"; imp = null; editMode = false; document.body.classList.remove("editing-ui"); opEdit = null; noteOpen = false;
   $("#view").innerHTML = ""; $("#nav").innerHTML = ""; $("#who").textContent = "";
 }
 function signedOut(msg){ applySession(null); wipeUi(); authMode = "login"; authMsg = msg || ""; drawAuth(); }

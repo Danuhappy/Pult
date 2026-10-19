@@ -187,6 +187,36 @@ process.on("unhandledRejection", async e => { console.log("ERR", e.message.split
   await page.setInputFiles('#stmtIn', tmp + '/junk.pdf'); await page.waitForSelector('.banner:has-text("Не получилось прочитать")', { timeout: 15000 });
   check('Битый файл: понятное сообщение, без падения', true);
   await page.click('[data-click="stmtCancel"]');
+  // изменение операции и запоминание категории
+  const myUid = rows.find(x => x.col === 'tasks').user_id;
+  const pyat = () => rows.filter(r => r.user_id === myUid && r.col === 'money' && /PYATEROCHKA/.test(r.data.note || ''));
+  await page.click('[data-v="money"]'); await page.click('.mtabs [data-args=\'["ops"]\']'); await page.waitForTimeout(150);
+  const opT = pyat()[0]; const others = pyat().length - 1;
+  await page.click(`.opopen[data-args='["${opT.id}"]']`); await page.waitForTimeout(150);
+  check('Нажатие на операцию открывает форму изменения', await page.isVisible('form.opedit'));
+  await page.fill('form.opedit [name="a"]', '999,50'); await page.selectOption('form.opedit [name="c"]', 'Дом и стройка'); await page.fill('form.opedit [name="n"]', 'PYATEROCHKA 1234 (исправил)');
+  await page.click('form.opedit .btn.pri'); await page.waitForTimeout(400);
+  const t2 = rows.find(r => r.id === opT.id).data;
+  check('Сумма, категория и описание операции сохранены', t2.amount === 999.5 && t2.cat === 'Дом и стройка' && t2.note === 'PYATEROCHKA 1234 (исправил)');
+  check('Остальные такие же операции тоже получили новую категорию', others > 0 && pyat().every(r => r.data.cat === 'Дом и стройка'));
+  const rules = (rows.find(r => r.user_id === myUid && r.col === 'meta' && r.id === 'catrules') || { data: {} }).data.r || {};
+  check('Правило запомнено: «pyaterochka» → «Дом и стройка»', rules.pyaterochka === 'Дом и стройка');
+  await page.fill('#qText', '300 Пятёрочка pyaterochka'); await page.click('form[data-submit="addQuick"] .btn.pri'); await page.waitForTimeout(250);
+  check('Новая запись про это место сама получает выученную категорию', rows.some(r => r.user_id === myUid && r.col === 'money' && r.data.amount === 300 && r.data.cat === 'Дом и стройка'));
+  await page.click(`.opopen[data-args='["${opT.id}"]']`); await page.waitForTimeout(100); await page.fill('form.opedit [name="a"]', '0'); await page.click('form.opedit .btn.pri'); await page.waitForTimeout(150);
+  check('Нулевая сумма не сохраняется', rows.find(r => r.id === opT.id).data.amount === 999.5 && await page.isVisible('form.opedit'));
+  await page.click('form.opedit [data-click="opCancel"]'); await page.waitForTimeout(100);
+  check('«Отмена» закрывает форму без изменений', !(await page.isVisible('form.opedit')));
+  // заметки на телефоне: список → заметка → назад
+  await page.setViewportSize({ width: 390, height: 844 }); await page.click('[data-v="notes"]'); await page.waitForTimeout(150);
+  check('На телефоне сначала виден список заметок', await page.isVisible('#noteItems') && !(await page.isVisible('#noteText')));
+  await page.click('#noteItems .nitem >> nth=0'); await page.waitForTimeout(150);
+  check('Нажатие на заметку открывает её для изменения', await page.isVisible('#noteText') && !(await page.isVisible('#noteItems')));
+  await page.fill('#noteText', 'Изменил с телефона'); await page.waitForTimeout(900);
+  check('Изменения заметки с телефона сохраняются', rows.some(r => r.col === 'notes' && r.data.text === 'Изменил с телефона'));
+  await page.click('[data-click="noteBack"]'); await page.waitForTimeout(100);
+  check('«← Все заметки» возвращает к списку', await page.isVisible('#noteItems'));
+  await page.setViewportSize({ width: 1280, height: 860 });
   // все разделы рендерятся без ошибок
   await page.click('[data-v="habits"]'); check('Плашки про уведомления больше нет', !(await page.textContent('#view')).includes('Напишите в чат'));
   for (const v of ['home','tasks','habits','cal','health','money','notes']) { await page.click(`[data-v="${v}"]`); }
