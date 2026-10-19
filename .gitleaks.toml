@@ -3,7 +3,7 @@
 useDefault = true
 
 [allowlist]
-description = "Публичный publishable-ключ Supabase (по замыслу виден всем) и тестовый ключ мок-сервера"
+description = "Публичный publishable-ключ Supabase, тестовый ключ мок-сервера и открытый пример из RFC 8291"
 paths = [
   '''vendor/pdfjs/''',
   '''tests/statements/out/''',
@@ -11,4 +11,8 @@ paths = [
 regexes = [
   '''sb_publishable_[A-Za-z0-9_-]+''',
   '''pk_test_publishable_key_123456''',
+  # открытые тестовые ключи из примера стандарта RFC 8291 (Appendix A), не секреты
+  '''BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4''',
+  '''BTBZMqHH6r4Tts7J_aSIgg''',
+  '''q1dXpw3UpT5VOmu_cf_v6ih07Aems3njxI-JWgLcM94''',
 ]
