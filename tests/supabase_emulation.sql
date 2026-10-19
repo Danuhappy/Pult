@@ -9,3 +9,7 @@ $$;
 grant usage on schema auth to anon, authenticated;
 grant execute on function auth.uid() to anon, authenticated;
 grant usage on schema public to anon, authenticated;
+-- для пуш-уведомлений
+do $$ begin if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin; end if; end $$;
+create schema if not exists extensions;
+create extension if not exists pgcrypto schema extensions;

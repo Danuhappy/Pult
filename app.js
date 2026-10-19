@@ -89,6 +89,7 @@ async function loadAll(){
     if (rows.length < 1000) break;
   }
   COLS.forEach(c => S[c] = fresh[c]);
+  refreshPush();
   { const th = (S.meta.settings || {}).theme; if (themeOk(th) && th !== currentTheme()) applyTheme(th); }
   if (!moneyPicked) { const ms = monthsWithMoney(); if (ms.length && !ms.some(([k]) => k === moneyMonth)) moneyMonth = ms[0][0]; }
   netError = ""; render();
@@ -301,6 +302,7 @@ function vTasks(){
   };
   const L=groups[taskTab];
   return `<div><h1>Задачи</h1><div class="sub">${groups.today.filter(x=>!x.done).length} открыто на сегодня</div></div>
+  ${pushCard(true)}
   <form class="card form" data-submit="addTask">
     <label style="grid-column:1/-1">Что сделать<input type="text" id="tTitle" name="title" placeholder="Купить продукты" autocomplete="off"></label>
     <label>Дата<input type="date" id="tDate" name="date" value="${t}"></label>
@@ -719,6 +721,7 @@ function vHabits(){
   const dueToday=hs.filter(x=>habitDue(x,t)), doneToday=dueToday.filter(x=>(x.log||{})[t]).length;
   const last7=Array.from({length:7},(_,i)=>addDays(t,i-6));
   return `<div><h1>Привычки</h1><div class="sub">${dueToday.length?`Сегодня ${doneToday} из ${dueToday.length}`:hs.length?`Сегодня по плану отдых · привычек: ${hs.length}`:"Добавьте первую привычку"}</div></div>
+  ${pushCard(true)}
   <form class="card" data-submit="addHabit">
     <div class="form hform">
       <label>Привычка<input type="text" id="hName" name="hn" placeholder="Зарядка 10 минут" autocomplete="off"></label>
@@ -815,6 +818,70 @@ function boardHtml(){
     <form data-submit="addCard" ${A(k)} class="compose" style="margin-top:10px"><input type="text" id="kAdd${k}" aria-label="Новая карточка в колонку ${n}" name="c" placeholder="Новая карточка" autocomplete="off"><button class="btn sm">+</button></form></div>`;}).join("")}</div>`;
 }
 
+/* ---------- уведомления на телефон (Web Push) ---------- */
+// Телефон подписывается у своего push-сервиса (Apple/Google), подписка хранится в кабинете (push_subs, RLS),
+// а функция Supabase раз в минуту проверяет задачи и привычки и присылает напоминание.
+let pushState = "unknown", pushBusy = false;
+const FN_URL = () => CFG.url + "/functions/v1/push";
+const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+async function refreshPush(){
+  let st;
+  if (!pushSupported()) st = isIOS() && !isStandalone() ? "ios-home" : "unsupported";
+  else if (Notification.permission === "denied") st = "denied";
+  else {
+    try { const reg = await navigator.serviceWorker.getRegistration(); const sub = reg && await reg.pushManager.getSubscription(); st = sub && Notification.permission === "granted" ? "on" : "off"; }
+    catch (_) { st = "off"; }
+  }
+  if (st !== pushState) { pushState = st; if (view === "tasks" || view === "habits" || editMode) render(); }
+}
+const b64uToBytes = s => { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; };
+async function pushTest(silent){
+  try {
+    await ensureFresh();
+    const r = await fetch(FN_URL(), { method: "POST", headers: { apikey: CFG.key, Authorization: "Bearer " + session.access_token, "Content-Type": "application/json" }, body: JSON.stringify({ action: "test" }) });
+    if (r.status === 429) { if (!silent) toast("Подождите полминуты и попробуйте снова"); return; }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    if (!silent) toast("Отправил проверочное уведомление");
+  } catch (_) { if (!silent) toast("Не получилось отправить проверку, попробуйте позже"); }
+}
+async function pushEnable(){
+  if (pushBusy) return;
+  if (!pushSupported()) { refreshPush(); return; }
+  pushBusy = true; render();
+  try {
+    const perm = await Notification.requestPermission(); // сразу по нажатию — так требует iPhone
+    if (perm !== "granted") { pushBusy = false; await refreshPush(); render(); toast(perm === "denied" ? "Уведомления запрещены в настройках телефона" : "Разрешение не выдано"); return; }
+    const reg = await navigator.serviceWorker.register("sw.js"); await navigator.serviceWorker.ready;
+    const kr = await fetch(FN_URL() + "?action=vapid", { headers: { apikey: CFG.key } }); const { key } = await kr.json();
+    if (typeof key !== "string" || key.length < 80) throw new Error("no key");
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uToBytes(key) });
+    const j = sub.toJSON(), tz = (Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Moscow").slice(0, 63);
+    await api("rpc/push_subscribe", { method: "POST", body: { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_tz: tz } });
+    pushState = "on"; pushBusy = false; render(); toast("Уведомления включены");
+    pushTest(true);
+  } catch (e) { pushBusy = false; render(); toast("Не получилось включить уведомления. Попробуйте ещё раз"); }
+}
+async function pushDisable(){
+  try {
+    const reg = await navigator.serviceWorker.getRegistration(), sub = reg && await reg.pushManager.getSubscription();
+    if (sub) { const ep = sub.endpoint; await sub.unsubscribe(); await api("push_subs?endpoint=eq." + encodeURIComponent(ep), { method: "DELETE", headers: { Prefer: "return=minimal" } }); }
+  } catch (_) {}
+  pushState = "off"; render(); toast("Уведомления выключены на этом телефоне");
+}
+function pushCard(compact){
+  const what = "о задачах со временем, привычках и утренняя сводка в 9:00";
+  if (pushState === "unknown") return "";
+  if (pushState === "on") return compact ? "" : `<div class="banner ok">Уведомления включены: напоминания ${what}. <button class="linkbtn" data-click="pushTest">Проверить</button> · <button class="linkbtn" data-click="pushDisable">Выключить</button></div>`;
+  if (pushState === "ios-home") return `<div class="card pushcard"><div class="lbl">Уведомления на iPhone</div><div style="margin-top:6px">Чтобы приходили напоминания, откройте Pulse с экрана «Домой»: в Safari нажмите <b>«Поделиться»</b> → <b>«На экран „Домой“»</b>, затем запустите Pulse с иконки и включите уведомления здесь.</div></div>`;
+  if (pushState === "unsupported") return compact ? "" : `<div class="banner">Этот браузер не умеет получать уведомления. На iPhone откройте Pulse с экрана «Домой» (нужна iOS 16.4 или новее).</div>`;
+  if (pushState === "denied") return `<div class="banner">Уведомления запрещены. Разрешите их: <b>Настройки</b> → <b>Уведомления</b> → <b>Pulse</b>, потом обновите страницу.</div>`;
+  return `<div class="card pushcard"><div class="spread" style="gap:12px"><div><div class="lbl">Уведомления на телефон</div><div class="mute" style="font-size:13px;margin-top:4px">Напоминания ${what}.</div></div>
+    <button class="btn pri" data-click="pushEnable" ${pushBusy ? "disabled" : ""}>${pushBusy ? "Включаю…" : "Включить уведомления"}</button></div></div>`;
+}
+
 /* ---------- темы оформления ---------- */
 const THEMES = [
   ["neon", "Неон", "#0D0303", "linear-gradient(135deg,#BBEF1F 0 40%,#FF0055 40% 70%,#0D0303 70%)"],
@@ -886,6 +953,7 @@ function editPanel(p){
       <div class="mute" style="font-size:13px;margin-top:4px">Перетаскивайте блоки и вкладки меню, как приложения на iPhone. «−» скрывает, «+» возвращает.${p ? "" : " Блоки можно двигать на «Обзоре» и в «Финансах» → «Аналитика»."}</div></div>
       <div class="row" style="gap:8px"><button type="button" class="btn sm" data-click="resetLayout">${resetArmed ? "Точно сбросить?" : "Сбросить"}</button><button type="button" class="btn pri" data-click="toggleEdit">Готово</button></div></div>
     ${themePicker()}
+    <div class="lbl" style="margin-top:14px">Уведомления</div><div style="margin-top:6px">${pushCard(false) || `<span class="mute">Проверяю…</span>`}</div>
     ${p && c.hidden.length ? `<div class="lbl" style="margin-top:12px">Скрытые блоки · ${esc(PAGE_NAME[p])}</div><div class="row" style="gap:6px;margin-top:6px">${c.hidden.map(id => `<button type="button" class="stk" data-click="blkShow" ${A(p, id)}>＋ ${esc(name[id])}</button>`).join("")}</div>` : ""}
     ${hidNav.length ? `<div class="lbl" style="margin-top:12px">Скрытые вкладки меню</div><div class="row" style="gap:6px;margin-top:6px">${hidNav.map(k => `<button type="button" class="stk" data-click="navShow" ${A(k)}>＋ ${esc(vname[k])}</button>`).join("")}</div>` : ""}
   </div>`;
@@ -994,7 +1062,7 @@ const ACTIONS = {
   setPayKindForm, setNoteGroup, noteSearch, toggleSticker, togglePin, noteFilterGroup, noteFilterSticker,
   stmtPick, stmtToggle, stmtAll, stmtCat, stmtCancel, stmtSave,
   toggleEdit, resetLayout, blkHide, blkShow, blkWidth, blkMove, navHide, navShow,
-  setTheme, habitDay,
+  setTheme, habitDay, pushEnable, pushDisable, pushTest: () => pushTest(false),
   homeTab: k => { homeTab = k; render(); },
   taskTab: k => { taskTab = k; render(); },
   healthTab: k => { healthTab = k; render(); },

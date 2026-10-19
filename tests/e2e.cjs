@@ -4,7 +4,7 @@ const { chromium } = require(process.env.PW);
 const crypto = require('crypto');
 const BASE = 'http://127.0.0.1:8099/';
 const SB = 'https://xhvamuaxrhshfouztqfn.supabase.co'; // запросы перехватываются моком, в сеть не уходят
-const users = {}, tokens = {}, rows = [];
+const users = {}, tokens = {}, rows = [], pushSubs = [], pushTests = [];
 const results = []; const check = (name, ok) => { results.push([ok ? 'OK  ' : 'FAIL', name]); };
 function json(route, status, body){ return route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) }); }
 function issue(u){ const at = crypto.randomUUID(), rt = crypto.randomUUID(); tokens[at] = u.id; tokens['r:' + rt] = u.id;
@@ -28,6 +28,9 @@ async function mock(route){
     if (m === 'POST') { const b = Array.isArray(body) ? body : [body]; for (const r of b) { const i = rows.findIndex(x => x.user_id === uid && x.col === r.col && x.id === r.id); const row = { user_id: uid, col: r.col, id: r.id, data: r.data }; i >= 0 ? rows[i] = row : rows.push(row); } return route.fulfill({ status: 201, headers: { 'access-control-allow-origin': '*' } }); }
     if (m === 'DELETE') { const col = url.searchParams.get('col').slice(3), id = url.searchParams.get('id').slice(3); for (let i = rows.length - 1; i >= 0; i--) if (rows[i].user_id === uid && rows[i].col === col && rows[i].id === id) rows.splice(i, 1); return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } }); }
   }
+  if (p === '/rest/v1/rpc/push_subscribe') { if (!uid) return json(route, 401, {}); pushSubs.push({ user_id: uid, ...body }); return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } }); }
+  if (p === '/rest/v1/push_subs' && m === 'DELETE') { const ep = url.searchParams.get('endpoint').slice(3); for (let i = pushSubs.length - 1; i >= 0; i--) if (pushSubs[i].user_id === uid && pushSubs[i].p_endpoint === ep) pushSubs.splice(i, 1); return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } }); }
+  if (p === '/functions/v1/push') { if (url.searchParams.get('action') === 'vapid') return json(route, 200, { key: 'B' + 'A'.repeat(86) }); if (body.action === 'test') { pushTests.push(uid); return uid ? json(route, 200, { sent: 1 }) : json(route, 401, {}); } }
   return json(route, 404, {});
 }
 process.on("unhandledRejection", async e => { console.log("ERR", e.message.split("\n")[0]); console.log("results so far", JSON.stringify(results)); if (global.__page) { console.log("authmsg:", await global.__page.textContent(".authmsg").catch(()=>"-")); console.log("errs:", JSON.stringify(global.__errs)); } process.exit(1); });
@@ -261,6 +264,31 @@ process.on("unhandledRejection", async e => { console.log("ERR", e.message.split
   await page.click('.rail .editbtn', { force: true }); await page.click(`.thm[data-args='["neon"]']`, { force: true }); await page.waitForTimeout(150);
   check('Возврат к «Неону» убирает тему', !(await page.evaluate(() => document.documentElement.hasAttribute('data-theme'))) && meta().theme === 'neon');
   await page.click('.editpanel [data-click="toggleEdit"]', { force: true }); await page.waitForTimeout(100);
+  // уведомления: подписка телефона (push-сервис браузера подменён — в тесте нет Apple/Google)
+  await page.evaluate(() => {
+    const fakeSub = { endpoint: 'https://web.push.apple.com/test-device', toJSON() { return { endpoint: this.endpoint, keys: { p256dh: 'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4', auth: 'BTBZMqHH6r4Tts7J_aSIgg' } }; }, unsubscribe: async () => { window.__subbed = false; return true; } };
+    window.__subbed = false; window.__perm = 'default';
+    const pm = { getSubscription: async () => window.__subbed ? fakeSub : null, subscribe: async (o) => { window.__appKey = o.applicationServerKey.length; window.__subbed = true; return fakeSub; } };
+    const reg = { pushManager: pm };
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: { register: async (u) => { window.__swUrl = u; return reg; }, ready: Promise.resolve(reg), getRegistration: async () => reg } });
+    window.PushManager = window.PushManager || function () {};
+    window.Notification = { get permission() { return window.__perm; }, requestPermission: async () => (window.__perm = 'granted') };
+  });
+  await page.click('[data-v="habits"]'); await page.evaluate(() => refreshPush()); await page.waitForTimeout(150);
+  check('На странице привычек есть кнопка «Включить уведомления»', await page.isVisible('[data-click="pushEnable"]'));
+  await page.click('[data-click="pushEnable"]'); await page.waitForTimeout(400);
+  const me1 = rows.find(x => x.col === 'tasks').user_id;
+  check('Телефон подписывается: разрешение, фоновый помощник sw.js, ключ сервера', await page.evaluate(() => window.__perm === 'granted' && window.__swUrl === 'sw.js' && window.__appKey === 65));
+  check('Подписка сохранена в кабинете (с часовым поясом)', pushSubs.length === 1 && pushSubs[0].user_id === me1 && pushSubs[0].p_endpoint === 'https://web.push.apple.com/test-device' && typeof pushSubs[0].p_tz === 'string' && pushSubs[0].p_tz.length > 2);
+  check('Сразу отправлено проверочное уведомление', pushTests.length === 1 && pushTests[0] === me1);
+  check('После включения кнопка исчезает', !(await page.isVisible('[data-click="pushEnable"]')));
+  await page.click('[data-v="home"]'); await page.click('.rail .editbtn', { force: true }); await page.waitForTimeout(150);
+  check('В «Настроить» видно, что уведомления включены', (await page.textContent('.editpanel')).includes('Уведомления включены'));
+  await page.click('.editpanel [data-click="pushDisable"]', { force: true }); await page.waitForTimeout(300);
+  check('Уведомления выключаются и подписка удаляется из кабинета', pushSubs.length === 0 && await page.evaluate(() => window.__subbed === false));
+  await page.click('.editpanel [data-click="toggleEdit"]', { force: true });
+  await page.evaluate(() => { window.__perm = 'denied'; }); await page.click('[data-v="habits"]'); await page.evaluate(() => refreshPush()); await page.waitForTimeout(150);
+  check('Если уведомления запрещены — подсказка, где их разрешить', (await page.textContent('#view')).includes('Настройки') && (await page.textContent('#view')).includes('Уведомления'));
   // телефон: разделы внизу экрана
   await page.setViewportSize({ width: 390, height: 844 }); await page.click('[data-v="home"]'); await page.waitForTimeout(150);
   const nb = await page.evaluate(() => { const r = document.querySelector('#nav').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: innerHeight, w: r.width }; });

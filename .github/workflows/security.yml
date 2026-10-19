@@ -29,7 +29,7 @@ jobs:
           exit $code
       - name: Нет секретных ключей Supabase в публичных файлах
         run: |
-          if grep -nE 'sb_secret_[A-Za-z0-9_-]{10,}' index.html app.js bank.js config.js style.css; then
+          if grep -nE 'sb_secret_[A-Za-z0-9_-]{10,}' index.html app.js bank.js sw.js config.js style.css; then
             echo "Найден секретный ключ в публичном файле"; exit 1; fi
           python3 - <<'PY'
           import json,base64,re
@@ -50,3 +50,21 @@ jobs:
           node-version: 22
       - name: CSV и Excel разных банков разбираются без потерь
         run: node tests/statements/check_tables.cjs
+  push:
+    name: Пуш-уведомления (шифрование и логика)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Шифрование Web Push и подпись VAPID
+        run: node --experimental-strip-types --no-warnings tests/push/webpush.test.ts
+      - name: Сверка с примером из стандарта RFC 8291 (независимая библиотека)
+        run: |
+          pip install --quiet cryptography
+          node --experimental-strip-types --no-warnings tests/push/gen_for_python.ts | python3 tests/push/rfc_check.py
+      - name: Какие напоминания и когда отправляются
+        run: node --experimental-strip-types --no-warnings tests/push/reminders.test.ts
+      - name: Функция целиком (подставной сервер)
+        run: node --experimental-strip-types --no-warnings tests/push/function.test.ts

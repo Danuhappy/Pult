@@ -12,3 +12,7 @@ $P -f tests/supabase_emulation.sql
 $P -f supabase/schema.sql
 $P -f supabase/schema.sql   # повторный запуск не должен ломаться
 psql -X -h "$D" -p $PORT -U postgres -d postgres -f tests/rls_test.sql
+# пуш-уведомления (pg_net и pg_cron есть только в Supabase — здесь их пропускаем)
+grep -v '^create extension if not exists pg_' supabase/push.sql > "$D/push.sql"
+$P -f "$D/push.sql"; $P -f "$D/push.sql"   # повторный запуск не должен ломаться
+psql -X -h "$D" -p $PORT -U postgres -d postgres -f tests/push_rls_test.sql

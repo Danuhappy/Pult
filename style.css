@@ -460,3 +460,5 @@ button.tile.tlink:hover{border-color:rgba(var(--ov-c),.25)}
 .hdays{display:flex;gap:5px;flex-wrap:wrap}
 .hday{border:1px solid var(--line);background:none;color:var(--mute);border-radius:9px;padding:4px 0;width:36px;font-size:12px;cursor:pointer}
 .hday.on{background:rgba(var(--lime-c),.16);border-color:rgba(var(--lime-c),.55);color:var(--fg)}
+.banner.ok{background:rgba(var(--lime-c),.08);border-color:rgba(var(--lime-c),.35)}
+.pushcard .btn.pri{flex:none}
