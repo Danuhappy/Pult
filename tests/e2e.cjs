@@ -4,7 +4,7 @@ const { chromium } = require(process.env.PW);
 const crypto = require('crypto');
 const BASE = 'http://127.0.0.1:8099/';
 const SB = 'https://xhvamuaxrhshfouztqfn.supabase.co'; // запросы перехватываются моком, в сеть не уходят
-const users = {}, tokens = {}, rows = [], pushSubs = [], pushTests = [];
+const users = {}, tokens = {}, rows = [], pushSubs = [], pushTests = [], hsTok = {};
 const results = []; const check = (name, ok) => { results.push([ok ? 'OK  ' : 'FAIL', name]); };
 function json(route, status, body){ return route.fulfill({ status, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(body) }); }
 function issue(u){ const at = crypto.randomUUID(), rt = crypto.randomUUID(); tokens[at] = u.id; tokens['r:' + rt] = u.id;
@@ -28,6 +28,10 @@ async function mock(route){
     if (m === 'POST') { const b = Array.isArray(body) ? body : [body]; for (const r of b) { const i = rows.findIndex(x => x.user_id === uid && x.col === r.col && x.id === r.id); const row = { user_id: uid, col: r.col, id: r.id, data: r.data }; i >= 0 ? rows[i] = row : rows.push(row); } return route.fulfill({ status: 201, headers: { 'access-control-allow-origin': '*' } }); }
     if (m === 'DELETE') { const col = url.searchParams.get('col').slice(3), id = url.searchParams.get('id').slice(3); for (let i = rows.length - 1; i >= 0; i--) if (rows[i].user_id === uid && rows[i].col === col && rows[i].id === id) rows.splice(i, 1); return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } }); }
   }
+  if (p.startsWith('/rest/v1/rpc/health_token_')) { if (!uid) return json(route, 401, {}); const a = p.slice('/rest/v1/rpc/health_token_'.length);
+    if (a === 'new') { hsTok[uid] = { t: 'pulse_' + crypto.randomBytes(24).toString('hex'), created: new Date().toISOString(), used: null }; return json(route, 200, hsTok[uid].t); }
+    if (a === 'info') return json(route, 200, hsTok[uid] ? { created: hsTok[uid].created, used: hsTok[uid].used } : null);
+    if (a === 'revoke') { delete hsTok[uid]; return json(route, 200, null); } }
   if (p === '/rest/v1/rpc/push_subscribe') { if (!uid) return json(route, 401, {}); pushSubs.push({ user_id: uid, ...body }); return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } }); }
   if (p === '/rest/v1/push_subs' && m === 'DELETE') { const ep = url.searchParams.get('endpoint').slice(3); for (let i = pushSubs.length - 1; i >= 0; i--) if (pushSubs[i].user_id === uid && pushSubs[i].p_endpoint === ep) pushSubs.splice(i, 1); return route.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*' } }); }
   if (p === '/functions/v1/push') { if (url.searchParams.get('action') === 'vapid') return json(route, 200, { key: 'B' + 'A'.repeat(86) }); if (body.action === 'test') { pushTests.push(uid); return uid ? json(route, 200, { sent: 1 }) : json(route, 401, {}); } }
@@ -319,6 +323,19 @@ process.on("unhandledRejection", async e => { console.log("ERR", e.message.split
   await page.click('.editpanel [data-click="toggleEdit"]', { force: true });
   await page.evaluate(() => { window.__perm = 'denied'; }); await page.click('[data-v="habits"]'); await page.evaluate(() => refreshPush()); await page.waitForTimeout(150);
   check('Если уведомления запрещены — подсказка, где их разрешить', (await page.textContent('#view')).includes('Настройки') && (await page.textContent('#view')).includes('Уведомления'));
+  // автозагрузка из Apple Здоровье
+  await page.click('#nav [data-v="health"]'); await page.waitForTimeout(250);
+  check('Здоровье: есть карточка автозагрузки с кнопкой «Подключить»', (await page.textContent('.hscard')).includes('Apple Здоровье') && !!(await page.$('.hscard [data-click="hsOn"]')));
+  await page.click('.hscard [data-click="hsOn"]'); await page.waitForTimeout(250);
+  const hsv = await page.$eval('#hs_token', e => e.value).catch(() => '');
+  const myHs = Object.values(hsTok)[0];
+  check('Ключ выдаётся и показывается вместе с адресом и инструкцией', /^pulse_[0-9a-f]{48}$/.test(hsv) && myHs && myHs.t === hsv && (await page.$eval('#hs_url', e => e.value)).endsWith('/rest/v1/rpc/health_ingest') && await page.$eval('.hsguide', e => e.open));
+  await page.click('.hscard [data-click="hsCopy"] >> nth=0'); await page.waitForTimeout(100);
+  hsTok[Object.keys(hsTok)[0]].used = new Date().toISOString();
+  await page.click('#nav [data-v="home"]'); await page.click('#nav [data-v="health"]'); await page.evaluate(() => loadAll()); await page.waitForTimeout(250);
+  check('Видно время последней загрузки с iPhone', (await page.textContent('.hscard')).includes('последняя загрузка: сегодня в'));
+  await page.click('.hscard [data-click="hsOff"]'); await page.waitForTimeout(250);
+  check('Автозагрузку можно отключить — ключ удаляется', Object.keys(hsTok).length === 0 && !!(await page.$('.hscard [data-click="hsOn"]')));
   // телефон: разделы внизу экрана
   await page.setViewportSize({ width: 390, height: 844 }); await page.click('[data-v="home"]'); await page.waitForTimeout(150);
   const nb = await page.evaluate(() => { const r = document.querySelector('#nav').getBoundingClientRect(); return { top: r.top, bottom: r.bottom, h: innerHeight, w: r.width }; });

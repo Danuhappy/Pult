@@ -90,6 +90,7 @@ async function loadAll(){
   }
   COLS.forEach(c => S[c] = fresh[c]);
   refreshPush();
+  if (view === "health") hsRefresh();
   { const th = (S.meta.settings || {}).theme; if (themeOk(th) && th !== currentTheme()) applyTheme(th); }
   if (!moneyPicked) { const ms = monthsWithMoney(); if (ms.length && !ms.some(([k]) => k === moneyMonth)) moneyMonth = ms[0][0]; }
   netError = ""; render();
@@ -348,6 +349,7 @@ function vHealth(){
   return `<div><h1>Здоровье</h1><div class="sub">Счёт дня ${sc.total} из 100</div></div>
   <div class="tabs">${[["today","Общее"],["trend","Динамика"]].map(([k,n])=>`<button class="${k===healthTab?"on":""}" data-click="healthTab" ${A(k)}>${n}</button>`).join("")}</div>
   ${healthTab==="today"?`
+  ${hsCard()}
   <div class="card"><h2>Сегодня <span class="lbl">${dLabel(t)}</span></h2>
     <div class="rings">${ring(sc.total,100,"var(--blue)","Счёт",sc.total)}${ring(sl,8,"var(--violet)","Сон",slTxt)}${ring(h.steps||0,8000,"var(--teal)","Шаги",h.steps?(h.steps/1000).toFixed(1).replace(".",",")+"к":"0")}${ring(h.water||0,8,"var(--cyan)","Вода",(h.water||0)+"/8")}${ring(h.mood||0,5,"var(--orange)","Настроение",h.mood||"—")}</div></div>
   <div class="grid g4">
@@ -959,6 +961,72 @@ function pushCard(compact){
     <button class="btn pri" data-click="pushEnable" ${pushBusy ? "disabled" : ""}>${pushBusy ? "Включаю…" : "Включить уведомления"}</button></div></div>`;
 }
 
+/* ---------- автозагрузка из Apple Здоровье ---------- */
+// Команда в приложении «Команды» на iPhone по расписанию отправляет шаги, сон и вес с личным ключом.
+// В базе хранится только хэш ключа; ключ умеет лишь дописывать шаги/сон/вес в свой день и не даёт читать данные.
+let hs = { state: "unknown", info: null, token: "", busy: false, loading: false };
+const HS_URL = () => CFG.url + "/rest/v1/rpc/health_ingest";
+async function hsRefresh(){
+  if (hs.loading || !session) return; hs.loading = true;
+  try { const r = await api("rpc/health_token_info", { method: "POST", body: {} }); const j = await r.json(); hs.info = j && typeof j === "object" ? j : null; hs.state = hs.info ? "on" : "off"; }
+  catch (_) { if (hs.state === "unknown") hs.state = "err"; }
+  hs.loading = false; if (view === "health") render();
+}
+async function hsOn(){
+  if (hs.busy) return; hs.busy = true; render();
+  try { const r = await api("rpc/health_token_new", { method: "POST", body: {} }); const t = await r.json();
+    if (typeof t !== "string" || !/^pulse_[0-9a-f]{48}$/.test(t)) throw new Error("bad");
+    hs.token = t; hs.state = "on"; hs.info = { created: new Date().toISOString(), used: null }; toast("Ключ готов — скопируйте его в команду");
+  } catch (_) { toast("Не получилось, попробуйте ещё раз"); }
+  hs.busy = false; render();
+}
+async function hsOff(){
+  try { await api("rpc/health_token_revoke", { method: "POST", body: {} }); hs = { ...hs, state: "off", info: null, token: "" }; toast("Автозагрузка отключена, старый ключ больше не работает"); }
+  catch (_) { toast("Не получилось, проверьте интернет"); }
+  render();
+}
+async function hsCopy(which){
+  const v = which === "url" ? HS_URL() : which === "key" ? CFG.key : hs.token;
+  if (!v) return;
+  try { await navigator.clipboard.writeText(v); toast("Скопировано"); }
+  catch (_) { const el = $("#hs_" + which); if (el) { el.focus(); el.select(); } toast("Выделил — нажмите «Скопировать»"); }
+}
+function hsWhen(iso){
+  if (!iso) return "ещё не было";
+  const d = new Date(iso); if (isNaN(d)) return "—";
+  const hm = pad(d.getHours()) + ":" + pad(d.getMinutes()), k = d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  return (k === today() ? "сегодня" : pad(d.getDate()) + "." + pad(d.getMonth() + 1)) + " в " + hm;
+}
+function hsField(id, label, val, hint){
+  return `<div class="hsf"><div class="lbl">${label}</div><div class="hsrow"><input id="hs_${id}" readonly value="${esc(val)}" aria-label="${label}"><button class="btn sm" data-click="hsCopy" ${A(id)}>Скопировать</button></div>${hint ? `<div class="mute hsh">${hint}</div>` : ""}</div>`;
+}
+function hsGuide(open){
+  return `<details class="hsguide" ${open ? "open" : ""}><summary>Как настроить на iPhone (5 минут, один раз)</summary><ol>
+  <li>Откройте приложение <b>«Команды»</b> → вкладка <b>«Автоматизация»</b> → <b>«+»</b> → <b>«Время суток»</b>. Поставьте <b>23:00</b>, «Ежедневно», выберите <b>«Запускать сразу»</b> → «Далее» → <b>«Новая пустая автоматизация»</b>.</li>
+  <li><b>Шаги.</b> Добавьте действие <b>«Найти образцы здоровья»</b>: тип <b>«Шаги»</b>, дата начала — <b>«Сегодня»</b>. Под ним добавьте <b>«Вычислить статистику»</b> → <b>«Сумма»</b> (в поиске действий наберите «статист»).</li>
+  <li><b>Сон.</b> Ещё раз <b>«Найти образцы здоровья»</b>: тип <b>«Анализ сна»</b>, дата начала — <b>за последний 1 день</b>; добавьте условие <b>«Значение» → «не является» → «В кровати»</b> (и, если есть, ещё одно: не является «Бодрствование»). Затем <b>«Получить сведения об образце здоровья»</b> → <b>«Длительность»</b>, затем <b>«Вычислить статистику»</b> → <b>«Сумма»</b>.</li>
+  <li><b>Вес</b> (если взвешиваетесь): <b>«Найти образцы здоровья»</b>: тип <b>«Вес»</b>, сортировка «Дата начала», «Сначала новые», ограничение <b>1</b>.</li>
+  <li>Последнее действие — <b>«Получить содержимое URL»</b>. Вставьте <b>Адрес</b> отсюда. Нажмите стрелку: метод <b>POST</b>; «Заголовки» → «+»: ключ <b>apikey</b>, значение — <b>Ключ приложения</b>. «Тело запроса» — <b>JSON</b>, добавьте поля:
+    <br>• <code>token</code> — Текст — <b>ваш личный ключ</b>
+    <br>• <code>steps</code> — Число — переменная «Статистика» из шагов
+    <br>• <code>sleep</code> — Число — «Статистика» из сна
+    <br>• <code>weight</code> — Число — «Образцы здоровья» из веса</li>
+  <li>Нажмите <b>▶</b> внизу. При первом запуске разрешите доступ к «Здоровью». Должно появиться <code>"ok": true</code> — а здесь обновятся шаги и сон.</li>
+  </ol><div class="mute hsh">Хотите, чтобы шаги обновлялись и днём, — создайте ещё одну такую же автоматизацию, например на 14:00. Воду и настроение по-прежнему отмечаете здесь.</div></details>`;
+}
+function hsCard(){
+  if (hs.state === "unknown" && !hs.loading) setTimeout(hsRefresh, 0);
+  const head = `<div class="lbl">Автозагрузка из Apple Здоровье</div>`;
+  if (hs.state === "unknown" || hs.state === "err") return `<div class="card hscard">${head}<div class="mute" style="margin-top:6px">${hs.state === "err" ? "Не удалось проверить — обновите страницу." : "Проверяю…"}</div></div>`;
+  if (hs.state === "off") return `<div class="card hscard"><div class="spread" style="gap:12px"><div>${head}<div class="mute" style="font-size:13px;margin-top:4px">Шаги, сон и вес будут подтягиваться сами — через приложение «Команды» на iPhone.</div></div>
+    <button class="btn pri" data-click="hsOn" ${hs.busy ? "disabled" : ""}>${hs.busy ? "Готовлю…" : "Подключить"}</button></div></div>`;
+  return `<div class="card hscard"><div class="spread" style="gap:12px;flex-wrap:wrap"><div>${head}<div style="margin-top:4px">Подключено · последняя загрузка: <b>${esc(hsWhen(hs.info && hs.info.used))}</b></div></div>
+    <div class="row" style="gap:8px"><button class="btn sm" data-click="hsOn" ${hs.busy ? "disabled" : ""}>Новый ключ</button><button class="btn sm" data-click="hsOff">Отключить</button></div></div>
+    ${hs.token ? `<div class="hsfields">${hsField("token", "Ваш личный ключ", hs.token, "Показывается один раз. Никому не отправляйте. Потеряли — нажмите «Новый ключ», старый перестанет работать.")}${hsField("url", "Адрес", HS_URL())}${hsField("key", "Ключ приложения (apikey)", CFG.key, "Он открытый, это не секрет.")}</div>`
+      : `<div class="mute hsh">Ключ показывается один раз при создании. Чтобы настроить команду заново, нажмите «Новый ключ».</div>`}
+    ${hsGuide(!!hs.token)}</div>`;
+}
+
 /* ---------- темы оформления ---------- */
 const THEMES = [
   ["neon", "Неон", "#0D0303", "linear-gradient(135deg,#BBEF1F 0 40%,#FF0055 40% 70%,#0D0303 70%)"],
@@ -1139,7 +1207,7 @@ const ACTIONS = {
   setPayKindForm, setNoteGroup, noteSearch, toggleSticker, togglePin, noteFilterGroup, noteFilterSticker,
   stmtPick, stmtToggle, stmtAll, stmtCat, stmtCancel, stmtSave,
   toggleEdit, resetLayout, blkHide, blkShow, blkWidth, blkMove, navHide, navShow,
-  setTheme, habitDay, opOpen, opCancel, opSave: (f, id) => opSave(f, id), noteBack: () => { noteOpen = false; render(); }, pushEnable, pushDisable, pushTest: () => pushTest(false),
+  setTheme, habitDay, opOpen, opCancel, opSave: (f, id) => opSave(f, id), noteBack: () => { noteOpen = false; render(); }, pushEnable, pushDisable, pushTest: () => pushTest(false), hsOn, hsOff, hsCopy,
   homeTab: k => { homeTab = k; render(); },
   taskTab: k => { taskTab = k; render(); },
   healthTab: k => { healthTab = k; render(); },
@@ -1257,7 +1325,7 @@ async function signOut(){
   authMode = "login"; authMsg = "Вы вышли из кабинета."; drawAuth();
 }
 function wipeUi(){
-  COLS.forEach(c => S[c] = {}); curNote = null; noteGroup = null; noteSticker = null; noteQuery = ""; moneyPicked = false; moneyMonth = today().slice(0,7); moneyTab = "dash"; imp = null; editMode = false; document.body.classList.remove("editing-ui"); opEdit = null; noteOpen = false;
+  COLS.forEach(c => S[c] = {}); curNote = null; noteGroup = null; noteSticker = null; noteQuery = ""; moneyPicked = false; moneyMonth = today().slice(0,7); moneyTab = "dash"; imp = null; editMode = false; document.body.classList.remove("editing-ui"); opEdit = null; noteOpen = false; hs = { state: "unknown", info: null, token: "", busy: false, loading: false };
   $("#view").innerHTML = ""; $("#nav").innerHTML = ""; $("#who").textContent = "";
 }
 function signedOut(msg){ applySession(null); wipeUi(); authMode = "login"; authMsg = msg || ""; drawAuth(); }

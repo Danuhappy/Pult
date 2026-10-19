@@ -62,10 +62,14 @@ as $$
 declare
   n bigint;
 begin
-  if auth.uid() is null then
+  -- доверенные функции базы (владелец postgres, например автозагрузка здоровья) пишут от имени владельца ключа
+  if current_user = 'postgres' and auth.uid() is null and new.user_id is not null then
+    null;
+  elsif auth.uid() is null then
     raise exception 'not authenticated' using errcode = '42501';
+  else
+    new.user_id := auth.uid();
   end if;
-  new.user_id := auth.uid();
   new.updated_at := now();
   if tg_op = 'INSERT' then
     select count(*) into n from public.items where user_id = new.user_id;

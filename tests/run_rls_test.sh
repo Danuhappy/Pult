@@ -16,3 +16,6 @@ psql -X -h "$D" -p $PORT -U postgres -d postgres -f tests/rls_test.sql
 grep -v '^create extension if not exists pg_' supabase/push.sql > "$D/push.sql"
 $P -f "$D/push.sql"; $P -f "$D/push.sql"   # повторный запуск не должен ломаться
 psql -X -h "$D" -p $PORT -U postgres -d postgres -f tests/push_rls_test.sql
+# автозагрузка здоровья из «Команд» iPhone
+$P -f supabase/health.sql; $P -f supabase/health.sql   # повторный запуск не должен ломаться
+psql -X -h "$D" -p $PORT -U postgres -d postgres -f tests/health_rls_test.sql

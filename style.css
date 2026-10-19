@@ -479,3 +479,13 @@ button.tile.tlink:hover{border-color:rgba(var(--ov-c),.25)}
   .notes:not(.open) > .nedit{display:none}
   .notes.open .nback{display:inline-flex}
 }
+/* автозагрузка из Apple Здоровье */
+.hscard .btn.pri{flex:none}
+.hsfields{display:grid;gap:12px;margin-top:14px}
+.hsrow{display:flex;gap:8px;margin-top:6px}
+.hsrow input{flex:1;min-width:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+.hsh{font-size:12.5px;margin-top:6px;line-height:1.45}
+.hsguide{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.hsguide summary{cursor:pointer;font-weight:600;color:var(--fg)}
+.hsguide ol{margin:10px 0 0;padding-left:20px;display:grid;gap:10px;font-size:14px;line-height:1.5}
+.hsguide code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;padding:1px 5px;border-radius:6px;background:rgba(var(--ov-c),.08)}
